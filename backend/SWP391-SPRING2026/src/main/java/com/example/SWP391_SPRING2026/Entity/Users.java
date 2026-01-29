@@ -41,7 +41,19 @@ public class Users {
     private LocalDateTime createAt;
 
     private LocalDateTime updateAt;
-
+    @Enumerated(EnumType.STRING)
     private UserStatus status;
+
+    @PrePersist
+    protected void onCreate() {
+        LocalDateTime now = LocalDateTime.now();
+        if (createAt == null) createAt = now;
+        if (updateAt == null) updateAt = now;
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        updateAt = LocalDateTime.now();
+    }
 
 }

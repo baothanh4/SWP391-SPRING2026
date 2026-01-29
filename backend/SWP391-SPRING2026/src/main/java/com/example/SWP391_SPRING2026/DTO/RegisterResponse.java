@@ -1,0 +1,18 @@
+package com.example.SWP391_SPRING2026.DTO;
+
+import com.example.SWP391_SPRING2026.Enum.UserRole;
+import com.example.SWP391_SPRING2026.Enum.UserStatus;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import java.time.LocalDateTime;
+@Data
+@AllArgsConstructor
+public class RegisterResponse {
+    private Long id;
+    private String email;
+    private String phone;
+    private String fullName;
+    private UserRole role;
+    private UserStatus status;
+    private LocalDateTime createdAt;
+}
