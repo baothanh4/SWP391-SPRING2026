@@ -48,7 +48,7 @@ const UserTable = (props) => {
                 return (
                     <span className="stt-number">
                         {(index + 1) + (current - 1) * pageSize}
-                    </span>
+                    </span> 
                 );
             }
         },
