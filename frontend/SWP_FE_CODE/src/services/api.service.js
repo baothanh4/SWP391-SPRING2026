@@ -55,15 +55,28 @@ const updateUserAvatarAPI = (avatar, _id, fullName, phone) => {
     return axios.put(URL_BACKEND, data);
 }
 
-const registerUserAPI = (fullName, email, password, phone) => {
-    const URL_BACKEND = "/api/v1/user/register";
+const registerUserAPI = (fullName, email, password, confirmPassword, phone, dob, gender) => {
+    const URL_BACKEND = "/api/auth/register";
     const data = {
         fullName: fullName,
         email: email,
         password: password,
+        confirmPassword: confirmPassword,
         phone: phone,
+        dob: dob,
+        gender: gender
     }
     return axios.post(URL_BACKEND, data)
+}
+
+const forgotPasswordAPI = (email) => {
+    const URL_BACKEND = `/api/auth/forgot-password?email=${encodeURIComponent(email)}`;
+    return axios.post(URL_BACKEND);
+}
+
+const resetPasswordAPI = (email, otp, newPassword) => {
+    const URL_BACKEND = `/api/auth/reset-password?email=${encodeURIComponent(email)}&otp=${encodeURIComponent(otp)}&newPassword=${encodeURIComponent(newPassword)}`;
+    return axios.post(URL_BACKEND);
 }
 
 const loginAPI = (username, password) => {
@@ -71,7 +84,7 @@ const loginAPI = (username, password) => {
     const data = {
         username: username,
         password: password,
-        delay:2000
+        delay: 2000
     }
     return axios.post(URL_BACKEND, data)
 }
@@ -96,6 +109,6 @@ const fetchALlBookAPI = (current, pageSize) => {
 export {
     createUserAPI, updateUserAPI, fetchAllUserAPI,
     deleteUserAPI, handleUploadFile, updateUserAvatarAPI,
-    registerUserAPI, loginAPI, getAccountAPI,
+    registerUserAPI, forgotPasswordAPI, resetPasswordAPI, loginAPI, getAccountAPI,
     logoutAPI, fetchALlBookAPI
 }

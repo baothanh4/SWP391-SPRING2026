@@ -1,30 +1,29 @@
 import React from 'react';
-import { Button, Form, Input, Row, Col, Tabs, notification } from "antd";
+import { Button, Form, Input, Row, Col, Tabs, notification, DatePicker, Select } from "antd";
 import { Link, useNavigate } from "react-router-dom";
 import Glasses_1 from '../assets/glasses_1.jpg';
 import './styles/register.css';
-// import { registerUserAPI } from '../services/api.service';
+import { registerUserAPI } from '../services/api.service';
 
 const RegisterPage = () => {
     const [form] = Form.useForm();
     const navigate = useNavigate();
 
     const onFinish = async (values) => {
-        // const res = await registerUserAPI(values.fullName, values.email, values.password);
-        // if (res.user) {
-        //     notification.success({
-        //         title: "Register success",
-        //         description: "Tạo tài khoản thành công!",
-        //     });
-        // } else {
-        //     notification.error({
-        //         title: "Register failed",
-        //         description: JSON.stringify(res.message),
-        //     });
-        // }
-        // console.log(">>>>> response tu API:", res.user);
-        console.log("tài khoản đã đăng kí:");
-
+        const res = await registerUserAPI(values.fullName, values.email, values.password, values.confirmPassword, values.phone, values.dob, values.gender);
+        console.log("response tu customize:", res);
+        if (res && res.id) {
+            notification.success({
+                title: "Register success",
+                description: "Tạo tài khoản thành công!",
+            });
+            navigate('/login');
+        } else {
+            notification.error({
+                title: "Register failed",
+                description: "Tạo tài khoản thất bại!",
+            });
+        }
     };
     const handleTabChange = (key) => {
         if (key === 'login') {
@@ -65,6 +64,18 @@ const RegisterPage = () => {
                     </Form.Item>
 
                     <Form.Item
+                        label="Phone"
+                        name="phone"
+                        rules={[{ required: true, message: 'Please input your phone number!' }]}
+                    >
+                        <Input
+                            placeholder="Nhập số điện thoại của bạn"
+                            className="modern-input"
+                            size="large"
+                        />
+                    </Form.Item>
+
+                    <Form.Item
                         label="Email"
                         name="email"
                         rules={[
@@ -88,6 +99,59 @@ const RegisterPage = () => {
                             placeholder="Nhập mật khẩu của bạn"
                             className="modern-input"
                             size="large"
+                        />
+                    </Form.Item>
+
+                    <Form.Item
+                        label="Confirm Password"
+                        name="confirmPassword"
+                        dependencies={['password']}
+                        rules={[
+                            { required: true, message: 'Please confirm your password!' },
+                            ({ getFieldValue }) => ({
+                                validator(_, value) {
+                                    if (!value || getFieldValue('password') === value) {
+                                        return Promise.resolve();
+                                    }
+                                    return Promise.reject(new Error('Mật khẩu xác nhận không khớp!'));
+                                },
+                            }),
+                        ]}
+                    >
+                        <Input.Password
+                            placeholder="Nhập lại mật khẩu của bạn"
+                            className="modern-input"
+                            size="large"
+                        />
+                    </Form.Item>
+
+                    <Form.Item
+                        label="Date of Birth"
+                        name="dob"
+                        rules={[{ required: true, message: 'Please select your date of birth!' }]}
+                    >
+                        <DatePicker
+                            placeholder="Chọn ngày sinh"
+                            className="modern-input"
+                            size="large"
+                            style={{ width: '100%' }}
+                            format="YYYY-MM-DD"
+                        />
+                    </Form.Item>
+
+                    <Form.Item
+                        label="Gender"
+                        name="gender"
+                        rules={[{ required: true, message: 'Please select your gender!' }]}
+                    >
+                        <Select
+                            placeholder="Chọn giới tính"
+                            className="modern-input"
+                            size="large"
+                            options={[
+                                { value: 0, label: 'Nam' },
+                                { value: 1, label: 'Nữ' },
+                            ]}
                         />
                     </Form.Item>
 

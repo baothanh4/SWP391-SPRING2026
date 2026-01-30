@@ -94,6 +94,10 @@ const LoginPage = () => {
                             Đăng nhập
                         </Button>
                     </Form.Item>
+
+                    <div className="forget-password">
+                        <Link to="/forget-password" className="forget-link">Quên mật khẩu?</Link>
+                    </div>
                     
                     <div className="form-footer">
                         <span>Chưa có tài khoản? </span>

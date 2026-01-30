@@ -249,6 +249,41 @@
     font-size: 14px;
 }
 
+.forget-password {
+    text-align: center;
+    margin-bottom: 16px;
+}
+
+.forget-link {
+    color: #667eea;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 14px;
+    transition: color 0.3s ease;
+}
+
+.forget-link:hover {
+    color: #764ba2;
+    text-decoration: underline;
+}
+
+.back-button {
+    margin-bottom: 24px;
+}
+
+.back-btn {
+    color: #6b7280;
+    font-weight: 500;
+    padding: 8px 12px;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+}
+
+.back-btn:hover {
+    background: #f3f4f6;
+    color: #667eea;
+}
+
 .modern-link {
     color: #667eea;
     text-decoration: none;

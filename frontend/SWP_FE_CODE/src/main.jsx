@@ -9,6 +9,8 @@ import {
 } from "react-router-dom";
 import LoginPage from './pages/login.jsx';
 import RegisterPage from './pages/register.jsx';
+import ForgetPasswordPage from './pages/forget-password.jsx';
+import ResetPasswordPage from './pages/reset-password.jsx';
 import HomePage from './pages/homepage.jsx';
 import UserPage from './components/user/user.jsx';
 import { AuthWrapper } from './context/auth.context.jsx';
@@ -43,6 +45,14 @@ const router = createBrowserRouter([
   {
     path: "/register",
     element: <RegisterPage />,
+  },
+  {
+    path: "/forget-password",
+    element: <ForgetPasswordPage />,
+  },
+  {
+    path: "/reset-password",
+    element: <ResetPasswordPage />,
   },
 
 ]); //khai bao router

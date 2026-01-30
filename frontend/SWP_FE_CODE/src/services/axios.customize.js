@@ -9,18 +9,21 @@ const instance = axios.create({
 // instance.defaults.headers.common['Authorization'] = AUTH_TOKEN;
 
 // Add a request interceptor
-// instance.interceptors.request.use(function (config) {
-//     if (typeof window !== "undefined" && window && window.localStorage //neu co dong nay thi lay ra dong duoi
-//        && window.localStorage.getItem('access_token')) { //lay ra access_token đã set ở login để gắn header
-//         config.headers.Authorization = 'Bearer ' + window.localStorage.getItem('access_token');
-//     }
-//     // Do something before request is sent
-//     return config;
-// }, function (error) {
-//     // Do something with request error
-//     return Promise.reject(error);
-// });
-
+instance.interceptors.request.use(function (config) {
+    if (typeof window !== "undefined" && window && window.localStorage //neu co dong nay thi lay ra dong duoi
+       && window.localStorage.getItem('access_token')//lay ra access_token đã set ở login để gắn header
+       && !config.url.includes('/auth/login') //không thêm header cho login/register...
+       && !config.url.includes('/auth/reset-password') 
+       && !config.url.includes('/auth/forgot-password') 
+       && !config.url.includes('/auth/register')) { 
+        config.headers.Authorization = 'Bearer ' + window.localStorage.getItem('access_token');
+    }
+    // Do something before request is sent
+    return config;
+}, function (error) {
+    // Do something with request error
+    return Promise.reject(error);
+});
 
 // Add a response interceptor
 instance.interceptors.response.use(function (response) { // noi tra ve respone
