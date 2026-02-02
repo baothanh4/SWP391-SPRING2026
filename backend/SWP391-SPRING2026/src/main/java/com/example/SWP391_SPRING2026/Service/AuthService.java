@@ -45,6 +45,9 @@ public class AuthService {
                 throw new BadRequestException("Confirm password does not match");
             }
         }
+        if (request.getPassword() == null || request.getPassword().isBlank()) {
+            throw new BadRequestException("Password is required");
+        }
 
         if (userRepository.existsByEmail(request.getEmail())) {
             throw new DuplicateResourceException("EMAIL_EXISTS", "Email already exists");
@@ -63,7 +66,11 @@ public class AuthService {
         user.setPassword(passwordEncoder.encode(request.getPassword()));
 
         // default server-side
-        user.setRole(UserRole.CUSTOMER);
+        user.setRole(
+                request.getRole() != null
+                        ? request.getRole()
+                        : UserRole.CUSTOMER
+        );
         user.setStatus(UserStatus.ACTIVED);
 
         Users saved = userRepository.save(user);

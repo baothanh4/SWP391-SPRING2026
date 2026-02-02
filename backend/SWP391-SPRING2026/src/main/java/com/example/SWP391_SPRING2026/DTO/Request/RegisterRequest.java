@@ -1,5 +1,6 @@
 package com.example.SWP391_SPRING2026.DTO.Request;
 
+import com.example.SWP391_SPRING2026.Enum.UserRole;
 import jakarta.validation.constraints.*;
 import lombok.Data;
 import java.time.LocalDate;
@@ -38,4 +39,6 @@ public class RegisterRequest {
     @Min(value = 0, message = "Gender must be between 0 and 2")
     @Max(value = 2, message = "Gender must be between 0 and 2")
     private Integer gender;
+
+    private UserRole role;
 }
