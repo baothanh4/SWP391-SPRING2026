@@ -12,6 +12,14 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import com.example.SWP391_SPRING2026.DTO.Response.ProductSearchItemDTO;
+import com.example.SWP391_SPRING2026.Exception.BadRequestException;
+import com.example.SWP391_SPRING2026.Repository.Projection.ProductSearchProjection;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+
+import java.math.BigDecimal;
+
 
 @Service
 @RequiredArgsConstructor
@@ -95,6 +103,51 @@ public class ProductService {
         dto.setStatus(product.getStatus().name());
         return dto;
     }
+
+    public Page<ProductSearchItemDTO> searchPublicProducts(
+            String keyword,
+            String brand,
+            ProductStatus status,
+            BigDecimal minPrice,
+            BigDecimal maxPrice,
+            Boolean inStock,
+            Pageable pageable
+    ) {
+        if (minPrice != null && maxPrice != null && minPrice.compareTo(maxPrice) > 0) {
+            throw new BadRequestException("minPrice must be <= maxPrice");
+        }
+
+        String kw = normalize(keyword);
+        String br = normalize(brand);
+
+        return productRepository.searchPublicProducts(kw, br, status, minPrice, maxPrice, inStock, pageable)
+                .map(this::toSearchItemDTO);
+    }
+
+    private ProductSearchItemDTO toSearchItemDTO(ProductSearchProjection p) {
+        ProductSearchItemDTO dto = new ProductSearchItemDTO();
+        dto.setId(p.getId());
+        dto.setName(p.getName());
+        dto.setBrandName(p.getBrandName());
+        dto.setStatus(p.getStatus() == null ? null : p.getStatus().name());
+        dto.setProductImage(p.getProductImage());
+
+        dto.setMinPrice(p.getMinPrice());
+        dto.setMaxPrice(p.getMaxPrice());
+
+        Long stock = p.getTotalStock() == null ? 0L : p.getTotalStock();
+        dto.setTotalStock(stock);
+        dto.setHasStock(stock > 0);
+
+        return dto;
+    }
+
+    private String normalize(String s) {
+        if (s == null) return null;
+        String t = s.trim();
+        return t.isEmpty() ? null : t;
+    }
+
 
 
 }
