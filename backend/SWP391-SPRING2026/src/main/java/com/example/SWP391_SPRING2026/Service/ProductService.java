@@ -76,6 +76,8 @@ public class ProductService {
         dto.setName(product.getName());
         dto.setBrandName(product.getBrandName());
         dto.setStatus(product.getStatus().name());
+        dto.setDescription(product.getDescription());
+        dto.setProductImage(product.getProductImage());
         return dto;
     }
 

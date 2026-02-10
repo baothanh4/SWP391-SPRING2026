@@ -1,7 +1,9 @@
 package com.example.SWP391_SPRING2026.Controller;
 
 import com.example.SWP391_SPRING2026.DTO.Response.ProductDetailResponseDTO;
+import com.example.SWP391_SPRING2026.DTO.Response.ProductResponseDTO;
 import com.example.SWP391_SPRING2026.DTO.Response.ProductSearchItemDTO;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
 import com.example.SWP391_SPRING2026.Enum.ProductStatus;
 import com.example.SWP391_SPRING2026.Service.ProductService;
@@ -16,6 +18,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/public/products")
@@ -43,4 +46,8 @@ public class PublicProductController {
         return productService.getPublicProductDetails(id);
     }
 
+    @GetMapping
+    public ResponseEntity<List<ProductResponseDTO>> getProducts(){
+        return ResponseEntity.ok(productService.getProducts());
+    }
 }

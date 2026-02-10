@@ -24,6 +24,7 @@ public class ProductVariantService {
         productVariant.setSku(dto.getSku());
         productVariant.setPrice(dto.getPrice());
         productVariant.setStockQuantity(dto.getStockQuantity());
+        productVariant.setSaleType(dto.getSaleType());
         productVariant.setProduct(product);
 
         productVariantRepository.save(productVariant);
@@ -37,7 +38,7 @@ public class ProductVariantService {
         variant.setSku(dto.getSku());
         variant.setPrice(dto.getPrice());
         variant.setStockQuantity(dto.getStockQuantity());
-
+        variant.setSaleType(dto.getSaleType());
         productVariantRepository.save(variant);
         return toDTO(variant);
     }
@@ -52,6 +53,7 @@ public class ProductVariantService {
         productVariantResponseDTO.setSku(productVariant.getSku());
         productVariantResponseDTO.setPrice(productVariant.getPrice());
         productVariantResponseDTO.setStockQuantity(productVariant.getStockQuantity());
+        productVariantResponseDTO.setSaleType(productVariant.getSaleType());
         return productVariantResponseDTO;
     }
 }

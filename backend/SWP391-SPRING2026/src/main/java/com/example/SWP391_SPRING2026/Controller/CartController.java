@@ -4,10 +4,13 @@ import com.example.SWP391_SPRING2026.DTO.Request.AddToCartDTO;
 import com.example.SWP391_SPRING2026.DTO.Request.CartSummaryUpdateDTO;
 import com.example.SWP391_SPRING2026.DTO.Request.UpdateCartItemDTO;
 import com.example.SWP391_SPRING2026.DTO.Response.CartResponseDTO;
+import com.example.SWP391_SPRING2026.Entity.Order;
 import com.example.SWP391_SPRING2026.Entity.UserPrincipal;
 import com.example.SWP391_SPRING2026.Service.CartService;
+import com.example.SWP391_SPRING2026.Service.CheckoutService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
@@ -17,6 +20,7 @@ import org.springframework.web.bind.annotation.*;
 public class CartController {
 
     private final CartService cartService;
+    private final CheckoutService checkoutService;
 
     @GetMapping
     public CartResponseDTO getCart(@AuthenticationPrincipal UserPrincipal principal) {
@@ -59,5 +63,11 @@ public class CartController {
     @DeleteMapping("/clear")
     public CartResponseDTO clearCart(@AuthenticationPrincipal UserPrincipal principal) {
         return cartService.clearCart(principal.getUserId());
+    }
+
+    @PostMapping("/checkout")
+    public ResponseEntity<Order> checkout(@AuthenticationPrincipal UserPrincipal principal,@RequestParam Long addressId) {
+        Order order = checkoutService.checkout(principal.getUserId(), addressId);
+        return ResponseEntity.ok(order);
     }
 }

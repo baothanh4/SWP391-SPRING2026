@@ -44,7 +44,7 @@ public class CartService {
 
     public CartResponseDTO addToCart(Long userId, AddToCartDTO dto) {
         if(dto.getQuantity() == null || dto.getQuantity() <1){
-            throw new RuntimeException("Quantity is empty");
+            throw new BadRequestException("Quantity must be >= 1");
         }
         Cart cart = getOrCreateActiveCart(userId);
         ProductVariant variant = resolveVariant(dto);
@@ -54,6 +54,10 @@ public class CartService {
         CartItem item = cartItemRepository
                 .findByCartIdAndProductVariantId(cart.getId(), variant.getId())
                 .orElse(null);
+
+        if (item.getQuantity() + dto.getQuantity() > 100) {
+            throw new BadRequestException("Maximum quantity exceeded");
+        }
 
         if (item == null) {
             item = new CartItem();
@@ -135,6 +139,7 @@ public class CartService {
     public CartResponseDTO clearCart(Long userId) {
         Cart cart = getOrCreateActiveCart(userId);
         cartItemRepository.deleteByCartId(cart.getId());
+        cart.getItems().clear();
         return getCurrentCart(userId);
     }
 
