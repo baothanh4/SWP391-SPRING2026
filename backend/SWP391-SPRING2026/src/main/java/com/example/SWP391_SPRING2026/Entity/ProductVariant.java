@@ -1,5 +1,6 @@
 package com.example.SWP391_SPRING2026.Entity;
 
+import com.example.SWP391_SPRING2026.Enum.SaleType;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -26,6 +27,10 @@ public class ProductVariant {
     private BigDecimal price;
 
     private Integer stockQuantity;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "sale_type",nullable = false)
+    private SaleType saleType;
 
     @ManyToOne
     @JoinColumn(name = "product_id")

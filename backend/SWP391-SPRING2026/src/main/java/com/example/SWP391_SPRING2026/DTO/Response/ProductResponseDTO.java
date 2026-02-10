@@ -7,5 +7,7 @@ public class ProductResponseDTO {
     private Long id;
     private String name;
     private String brandName;
+    private String description;
     private String status;
+    private String productImage;
 }
