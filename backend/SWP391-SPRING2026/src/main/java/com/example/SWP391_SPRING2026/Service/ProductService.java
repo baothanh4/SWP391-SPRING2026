@@ -129,7 +129,7 @@ public class ProductService {
         Product product = productRepository.findDetailById(productId)
                 .orElseThrow(() -> new ResourceNotFoundException("Product not found"));
 
-        // customer chỉ được xem ACTIVE
+
         if (product.getStatus() != ProductStatus.ACTIVE) {
             throw new ResourceNotFoundException("Product not found");
         }
@@ -151,6 +151,7 @@ public class ProductService {
                     vdto.setSku(v.getSku());
                     vdto.setPrice(v.getPrice());
                     vdto.setStockQuantity(v.getStockQuantity());
+                    vdto.setSaleType(v.getSaleType());
 
                     List<VariantAttributeResponseDTO> attrs = v.getAttributes().stream()
                             .map(a -> {
@@ -176,6 +177,28 @@ public class ProductService {
         dto.setVariants(variants);
         return dto;
     }
+
+    public Page<ProductSearchItemDTO> browsePublicProducts(
+            String keyword,
+            String brand,
+            BigDecimal minPrice,
+            BigDecimal maxPrice,
+            Boolean inStock,
+            Pageable pageable
+    ) {
+        return searchPublicProducts(keyword, brand, ProductStatus.ACTIVE, minPrice, maxPrice, inStock, pageable);
+    }
+
+    public List<String> getPublicBrands() {
+        return productRepository.findDistinctActiveBrands()
+                .stream()
+                .filter(s -> s != null && !s.isBlank())
+                .map(String::trim)
+                .distinct()
+                .sorted(String.CASE_INSENSITIVE_ORDER)
+                .toList();
+    }
+
 
 
 }

@@ -11,6 +11,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -90,12 +91,25 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
             @Param("inStock") Boolean inStock,
             Pageable pageable
     );
+    @Query("""
+        select distinct p.brandName
+        from Product p
+        where p.status = :status
+          and p.brandName is not null
+          and trim(p.brandName) <> ''
+        order by lower(p.brandName)
+    """)
+    List<String> findDistinctBrandNames(@Param("status") ProductStatus status);
 
     @Query("""
-    select distinct p from Product p
-    left join fetch p.variants v
-    where p.id = :id
+    select distinct trim(p.brandName)
+    from Product p
+    where p.status = com.example.SWP391_SPRING2026.Enum.ProductStatus.ACTIVE
+      and p.brandName is not null
+      and trim(p.brandName) <> ''
 """)
+    List<String> findDistinctActiveBrands();
+
     Optional<Product> findDetailById(@Param("id") Long id);
 
 }
