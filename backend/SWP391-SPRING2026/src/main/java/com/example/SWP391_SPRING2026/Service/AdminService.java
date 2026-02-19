@@ -58,7 +58,7 @@ public class AdminService {
         user.setDob(request.getDob());
 
 
-        user.setStatus(UserStatus.ACTIVED);
+        user.setStatus(UserStatus.ACTIVE);
         user.setRole(request.getRole());
 
         return mapToResponse(userRepository.save(user));
@@ -68,7 +68,7 @@ public class AdminService {
     @Transactional(readOnly = true)
     public Page<AdminUserResponse> listUsers(String keyword, UserRole role, UserStatus status, Pageable pageable) {
 
-        Specification<Users> spec = Specification.where((Specification<Users>) null);
+        Specification<Users> spec = (root, query, cb) -> cb.conjunction();
 
         if (StringUtils.hasText(keyword)) {
             spec = spec.and(UserSpecifications.keywordContains(keyword));

@@ -14,7 +14,10 @@ public class UserCreateReq {
     private String email;
 
     @NotBlank(message = "Số điện thoại là bắt buộc")
-    @Pattern(regexp = "^(0|\\\\+84)\\\\d{9}$", message = "Số điện thoại không hợp lệ")
+    @Pattern(
+            regexp = "^(0\\d{9}|\\+84\\d{9}|84\\d{9})$",
+            message = "Số điện thoại không hợp lệ"
+    )
     private String phone;
 
     @NotBlank(message = "Mật khẩu là bắt buộc")

@@ -114,14 +114,14 @@ public class AuthService {
         otpVerificationRepository.save(otpVerification);
 
         Users user=userRepository.findByEmail(email).orElseThrow(() -> new RuntimeException("Email not found"));
-        user.setStatus(UserStatus.ACTIVED);
+        user.setStatus(UserStatus.ACTIVE);
         userRepository.save(user);
     }
 
     public void resendRegisterOtp(String email){
         Users user=userRepository.findByEmail(email).orElseThrow(() -> new RuntimeException("Email not found"));
 
-        if(user.getStatus()==UserStatus.ACTIVED){
+        if(user.getStatus()== UserStatus.ACTIVE){
             throw new BadRequestException("Account is already activated");
         }
 
