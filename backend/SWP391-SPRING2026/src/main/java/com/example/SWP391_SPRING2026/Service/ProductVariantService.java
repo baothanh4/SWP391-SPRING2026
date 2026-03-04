@@ -10,6 +10,9 @@ import com.example.SWP391_SPRING2026.Repository.ProductVariantRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+import java.util.stream.Collectors;
+
 @Service
 @RequiredArgsConstructor
 public class ProductVariantService {
@@ -43,6 +46,19 @@ public class ProductVariantService {
         return toDTO(variant);
     }
 
+    public List<ProductVariantResponseDTO> getAllVariants(){
+        List<ProductVariant> productVariants = productVariantRepository.findAll();
+
+        return productVariants.stream().map(v -> ProductVariantResponseDTO.builder()
+                .id(v.getId())
+                .sku(v.getSku())
+                .price(v.getPrice())
+                .stockQuantity(v.getStockQuantity())
+                .saleType(v.getSaleType())
+                .product_id(v.getProduct().getId())
+                .build()).collect(Collectors.toList());
+    }
+
     public void delete(Long variantId){
         productVariantRepository.deleteById(variantId);
     }
@@ -54,6 +70,7 @@ public class ProductVariantService {
         productVariantResponseDTO.setPrice(productVariant.getPrice());
         productVariantResponseDTO.setStockQuantity(productVariant.getStockQuantity());
         productVariantResponseDTO.setSaleType(productVariant.getSaleType());
+        productVariantResponseDTO.setProduct_id(productVariant.getProduct().getId());
         return productVariantResponseDTO;
     }
 }

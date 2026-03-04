@@ -99,6 +99,12 @@ public class ManagerController {
         variantAttributeService.addAttribute(variantId, dto);
     }
 
+    @GetMapping("/variants")
+    @ResponseStatus(HttpStatus.OK)
+    public List<ProductVariantResponseDTO> getAllVariants(){
+        return productVariantService.getAllVariants();
+    }
+
     @PutMapping("/attributes/{attributeId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void updateAttribute(
@@ -119,6 +125,17 @@ public class ManagerController {
         variantAttributeImageService.addImages(attributeId,dto.getImages());
     }
 
+    @PutMapping("/attributes/images/{imageId}")
+    @ResponseStatus(HttpStatus.OK)
+    public ResponseEntity<?> updateImage(
+            @PathVariable Long imageId,
+            @RequestBody VariantAttributeImageRequestDTO dto){
+
+        variantAttributeImageService.updateImage(imageId, dto);
+        return ResponseEntity.ok("Image updated successfully");
+    }
+
+
     @DeleteMapping("/attributes/images/{imageId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteAttributeImages(@PathVariable Long imageId) {
@@ -136,6 +153,7 @@ public class ManagerController {
     public ProductComboResponseDTO getCombo(@PathVariable Long id){
         return comboService.getComboById(id);
     }
+
     @DeleteMapping("/combos/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deactive(@PathVariable Long id){

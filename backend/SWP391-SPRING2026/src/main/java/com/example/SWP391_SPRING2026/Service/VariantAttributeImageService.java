@@ -30,6 +30,19 @@ public class VariantAttributeImageService {
         }
     }
 
+    @Transactional
+    public void updateImage(Long imageId, VariantAttributeImageRequestDTO dto){
+
+        VariantAttributeImage image = variantAttributeImageRepository
+                .findById(imageId)
+                .orElseThrow(() -> new RuntimeException("Image not found"));
+
+        image.setImageUrl(dto.getImageUrl());
+        image.setSortOrder(dto.getSortOrder());
+
+        variantAttributeImageRepository.save(image);
+    }
+
     public void deleteImage(Long imageId){
         variantAttributeImageRepository.deleteById(imageId);
     }
