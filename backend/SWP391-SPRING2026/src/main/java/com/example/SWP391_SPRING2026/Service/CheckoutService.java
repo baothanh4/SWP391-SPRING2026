@@ -12,9 +12,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import com.example.SWP391_SPRING2026.Utility.DepositPolicy;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
-import com.example.SWP391_SPRING2026.Entity.OrderPayment;
+
 import com.example.SWP391_SPRING2026.Enum.PaymentStage;
 
 @Service
@@ -32,7 +31,6 @@ public class CheckoutService {
     private final PaymentRepository paymentRepository;
     private final VNPayService vnPayService;
     private Long depositAmount; // optional, chỉ dùng cho PRE_ORDER
-    private final OrderPaymentRepository orderPaymentRepository;
 
 
 
@@ -215,7 +213,7 @@ public class CheckoutService {
         }
 
 // 1) Initial payment record (FULL hoặc DEPOSIT)
-        OrderPayment initialPayment = new OrderPayment();
+        Payment initialPayment = new Payment();
         initialPayment.setOrder(order);
 
         PaymentStage initialStage;
@@ -232,14 +230,14 @@ public class CheckoutService {
             initialPayment.setStatus(PaymentStatus.PENDING);
         }
         initialPayment.setCreatedAt(LocalDateTime.now());
-        orderPaymentRepository.save(initialPayment);
+        paymentRepository.save(initialPayment);
 
 // 2) Nếu PRE_ORDER còn lại và remaining = COD => tạo record REMAINING COD để thu khi giao
         if (saleType == SaleType.PRE_ORDER) {
             long remaining = order.getRemainingAmount() == null ? 0L : order.getRemainingAmount();
             if (remaining > 0 && order.getRemainingPaymentMethod() == PaymentMethod.COD) {
 
-                OrderPayment remainingCOD = new OrderPayment();
+                Payment remainingCOD = new Payment();
                 remainingCOD.setOrder(order);
                 remainingCOD.setStage(PaymentStage.REMAINING);
                 remainingCOD.setMethod(PaymentMethod.COD);
@@ -247,7 +245,7 @@ public class CheckoutService {
                 remainingCOD.setStatus(PaymentStatus.UNPAID);
                 remainingCOD.setCreatedAt(LocalDateTime.now());
 
-                orderPaymentRepository.save(remainingCOD);
+                paymentRepository.save(remainingCOD);
             }
         }
 

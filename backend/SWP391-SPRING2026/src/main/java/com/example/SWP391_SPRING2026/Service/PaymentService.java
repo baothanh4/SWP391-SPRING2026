@@ -3,6 +3,7 @@ package com.example.SWP391_SPRING2026.Service;
 import com.example.SWP391_SPRING2026.Entity.Order;
 import com.example.SWP391_SPRING2026.Entity.Payment;
 import com.example.SWP391_SPRING2026.Enum.PaymentMethod;
+import com.example.SWP391_SPRING2026.Enum.PaymentStage;
 import com.example.SWP391_SPRING2026.Enum.PaymentStatus;
 import com.example.SWP391_SPRING2026.Repository.OrderRepository;
 import com.example.SWP391_SPRING2026.Repository.PaymentRepository;
@@ -11,8 +12,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import com.example.SWP391_SPRING2026.Entity.OrderPayment;
-import com.example.SWP391_SPRING2026.Repository.OrderPaymentRepository;
 
 import java.time.LocalDateTime;
 import java.util.Map;
@@ -24,45 +23,48 @@ public class PaymentService {
     private final OrderRepository orderRepository;
     private final PaymentRepository paymentRepository;
     private final VNPayService vnPayService;
-    private final OrderPaymentRepository orderPaymentRepository;
 
     private static final String SECRET_KEY =
             "4LTI2QLZGKBVC0HB79O3K437RSDFJDJJ";
 
     // =====================================================
-    // 1️⃣ CREATE VNPAY PAYMENT URL
+    // 1️⃣ CREATE NEW VNPAY PAYMENT (1–N SAFE)
     // =====================================================
     @Transactional
     public String createVNPayPayment(Long orderId,
                                      HttpServletRequest request) throws Exception {
 
         Order order = orderRepository.findById(orderId)
-                .orElseThrow(() ->
-                        new RuntimeException("Order not found"));
+                .orElseThrow(() -> new RuntimeException("Order not found"));
 
-        Payment payment = order.getPayment();
+        // ❗ Kiểm tra đã có SUCCESS payment chưa
+        boolean alreadyPaid = paymentRepository
+                .existsByOrder_IdAndStatus(orderId, PaymentStatus.SUCCESS);
 
-        if (payment == null) {
-            throw new RuntimeException("Payment not found");
-        }
-
-        if (payment.getStatus() == PaymentStatus.SUCCESS) {
+        if (alreadyPaid) {
             throw new RuntimeException("Order already paid");
         }
 
-        // Update trạng thái trước khi redirect
+        // 🔥 Tạo payment mới (KHÔNG overwrite cái cũ)
+        Payment payment = new Payment();
+        payment.setOrder(order);
+        payment.setStage(PaymentStage.FULL); // nếu PRE_ORDER thì xử lý riêng
         payment.setMethod(PaymentMethod.VNPAY);
+        payment.setAmount(order.getTotalAmount());
         payment.setStatus(PaymentStatus.PENDING);
+        payment.setCreatedAt(LocalDateTime.now());
+
         paymentRepository.save(payment);
 
-        // 🔥 LẤY IP CHUẨN (KHÔNG DÙNG LOCALHOST)
+        // Lấy IP chuẩn
         String ipAddress = request.getRemoteAddr();
         if (ipAddress == null || ipAddress.equals("0:0:0:0:0:0:0:1")) {
             ipAddress = "127.0.0.1";
         }
 
+        // 🔥 Quan trọng: truyền paymentId làm TxnRef
         return vnPayService.createVNPayUrl(
-                order.getId().toString(),
+                payment.getId().toString(),
                 payment.getAmount(),
                 ipAddress
         );
@@ -86,23 +88,27 @@ public class PaymentService {
 
         String paymentIdStr = params.get("vnp_TxnRef");
 
-        OrderPayment pay = orderPaymentRepository.findById(Long.parseLong(paymentIdStr))
+        Payment payment = paymentRepository.findById(Long.parseLong(paymentIdStr))
                 .orElseThrow(() -> new RuntimeException("Payment not found"));
+
+        // Nếu đã SUCCESS rồi thì không update lại
+        if (payment.getStatus() == PaymentStatus.SUCCESS) {
+            return "http://localhost:5173/payment-result?status=success";
+        }
 
         if ("00".equals(params.get("vnp_ResponseCode"))) {
 
-            pay.setStatus(PaymentStatus.SUCCESS);
-            pay.setTransactionCode(params.get("vnp_TransactionNo"));
-            pay.setPaidAt(LocalDateTime.now());
+            payment.setStatus(PaymentStatus.SUCCESS);
+            payment.setTransactionCode(params.get("vnp_TransactionNo"));
+            payment.setPaidAt(LocalDateTime.now());
 
         } else {
-            pay.setStatus(PaymentStatus.FAILED);
+            payment.setStatus(PaymentStatus.FAILED);
         }
 
-        orderPaymentRepository.save(pay);
+        paymentRepository.save(payment);
 
         return "http://localhost:5173/payment-result?status="
-                + pay.getStatus().name().toLowerCase();
-
+                + payment.getStatus().name().toLowerCase();
     }
 }

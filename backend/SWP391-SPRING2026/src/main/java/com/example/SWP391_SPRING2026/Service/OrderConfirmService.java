@@ -4,8 +4,8 @@ import com.example.SWP391_SPRING2026.Entity.Order;
 import com.example.SWP391_SPRING2026.Entity.Payment;
 import com.example.SWP391_SPRING2026.Entity.Shipment;
 import com.example.SWP391_SPRING2026.Enum.*;
-import com.example.SWP391_SPRING2026.Repository.OrderPaymentRepository;
 import com.example.SWP391_SPRING2026.Repository.OrderRepository;
+import com.example.SWP391_SPRING2026.Repository.PaymentRepository;
 import com.example.SWP391_SPRING2026.Repository.ShipmentRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -22,7 +22,7 @@ public class OrderConfirmService {
     private final OrderRepository orderRepository;
     private final ShipmentRepository shipmentRepository;
     private final GhnService ghnService;
-    private final OrderPaymentRepository orderPaymentRepository;
+    private final PaymentRepository paymentRepository;
 
     // =========================================================
     // OPERATION CONFIRM ORDER → CREATE GHN
@@ -36,21 +36,20 @@ public class OrderConfirmService {
             throw new RuntimeException("Order not approved by support");
         }
 
-        Payment payment = order.getPayment();
-        if (payment == null) {
-            throw new RuntimeException("Payment not found");
-        }
-
         Shipment shipment = order.getShipment();
         if (shipment == null) {
             throw new RuntimeException("Shipment not initialized");
         }
 
-        // 🔥 CHECK PAYMENT FOR ONLINE METHODS
-        if (payment.getMethod() != PaymentMethod.COD &&
-                payment.getStatus() != PaymentStatus.SUCCESS) {
+        // 🔥 Check all ONLINE payments phải SUCCESS
+        var payments = paymentRepository.findByOrder_Id(order.getId());
 
-            throw new RuntimeException("Online payment not completed");
+        for (Payment p : payments) {
+            if (p.getMethod() != PaymentMethod.COD
+                    && p.getStatus() != PaymentStatus.SUCCESS) {
+
+                throw new RuntimeException("Online payment not completed");
+            }
         }
 
         // ===== CALL GHN =====
@@ -59,14 +58,14 @@ public class OrderConfirmService {
         shipment.setGhnOrderCode(ghnCode);
         shipment.setStatus(ShipmentStatus.READY_TO_PICK);
 
-        // COD amount
-        if (payment.getMethod() == PaymentMethod.COD) {
-            shipment.setCodAmount(
-                    order.getRemainingAmount() != null
-                            ? order.getRemainingAmount()
-                            : order.getTotalAmount()
-            );
-        }
+        // 🔥 Tính COD cần thu (nếu có)
+        long codAmount = payments.stream()
+                .filter(p -> p.getMethod() == PaymentMethod.COD
+                        && p.getStatus() == PaymentStatus.UNPAID)
+                .mapToLong(Payment::getAmount)
+                .sum();
+
+        shipment.setCodAmount(codAmount);
 
         order.setOrderStatus(OrderStatus.SHIPPING);
 
@@ -92,37 +91,30 @@ public class OrderConfirmService {
         shipment.setStatus(newStatus);
 
         Order order = shipment.getOrder();
-        Payment payment = order.getPayment();
 
         switch (newStatus) {
 
             case DELIVERED -> {
                 shipment.setDeliveredAt(LocalDateTime.now());
 
-                // mark all COD unpaid payments as PAID
-                var pays = orderPaymentRepository.findByOrder_Id(order.getId());
-                for (var p : pays) {
-                    if (p.getMethod() == PaymentMethod.COD && p.getStatus() == PaymentStatus.UNPAID) {
+                // 🔥 Mark COD unpaid as PAID
+                var pays = paymentRepository.findByOrder_Id(order.getId());
+
+                for (Payment p : pays) {
+                    if (p.getMethod() == PaymentMethod.COD
+                            && p.getStatus() == PaymentStatus.UNPAID) {
+
                         p.setStatus(PaymentStatus.PAID);
                         p.setPaidAt(LocalDateTime.now());
                     }
                 }
-                shipment.setCodCollected(true);
 
+                shipment.setCodCollected(true);
                 order.setOrderStatus(OrderStatus.COMPLETED);
             }
 
-            case CANCELLED -> {
-                order.setOrderStatus(OrderStatus.CANCELLED);
-            }
-
-            case FAILED -> {
-                order.setOrderStatus(OrderStatus.FAILED);
-            }
-
-            default -> {
-                // Không đổi order status
-            }
+            case CANCELLED -> order.setOrderStatus(OrderStatus.CANCELLED);
+            case FAILED -> order.setOrderStatus(OrderStatus.FAILED);
         }
 
         shipmentRepository.save(shipment);
