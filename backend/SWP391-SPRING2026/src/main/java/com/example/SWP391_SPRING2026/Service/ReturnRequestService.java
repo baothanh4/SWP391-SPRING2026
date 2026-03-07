@@ -27,37 +27,53 @@ public class ReturnRequestService {
     private final PaymentRepository paymentRepository;
     private final RefundRequestRepository refundRequestRepository;
 
-    // 1) Customer submit complaint
-    public ReturnRequestResponseDTO submit(Long userId, SubmitReturnRequestDTO dto) {
+    public ReturnRequestResponseDTO submit(Long customerUserId, SubmitReturnRequestDTO dto) {
+        if (dto.getOrderItemId() == null) {
+            throw new BadRequestException("orderItemId is required");
+        }
 
-        if (dto.getOrderItemId() == null) throw new BadRequestException("orderItemId is required");
-        if (dto.getQuantity() == null || dto.getQuantity() <= 0) throw new BadRequestException("quantity must be > 0");
-        if (dto.getReason() == null) throw new BadRequestException("reason is required");
+        if (dto.getQuantity() == null || dto.getQuantity() <= 0) {
+            throw new BadRequestException("quantity must be > 0");
+        }
 
-        OrderItems item = orderItemRepository.lockOwnedItem(dto.getOrderItemId(), userId)
+        if (dto.getReason() == null) {
+            throw new BadRequestException("reason is required");
+        }
+
+        OrderItems item = orderItemRepository.lockOwnedItem(dto.getOrderItemId(), customerUserId)
                 .orElseThrow(() -> new BadRequestException("Order item not found"));
 
         Order order = item.getOrder();
 
-        // bạn đã chốt: chỉ cho khiếu nại khi COMPLETED
+        if (order == null || order.getAddress() == null || order.getAddress().getUser() == null) {
+            throw new BadRequestException("Invalid order ownership");
+        }
+
+        if (!order.getAddress().getUser().getId().equals(customerUserId)) {
+            throw new BadRequestException("You are not allowed to create return request for this order item");
+        }
+
         if (order.getOrderStatus() != OrderStatus.COMPLETED) {
-            throw new BadRequestException("Only COMPLETED orders can be complained");
+            throw new BadRequestException("Return request is only allowed when order is COMPLETED");
         }
 
-        if (dto.getQuantity() > item.getQuantity()) {
-            throw new BadRequestException("Requested quantity exceeds purchased quantity");
+        int purchasedQty = item.getQuantity() == null ? 0 : item.getQuantity();
+        if (dto.getQuantity() > purchasedQty) {
+            throw new BadRequestException("quantity cannot exceed purchased quantity");
         }
 
-        // chặn 1 request active / item
-        EnumSet<ReturnRequestStatus> active = EnumSet.of(
-                ReturnRequestStatus.SUBMITTED,
-                ReturnRequestStatus.WAITING_RETURN,
-                ReturnRequestStatus.RECEIVED,
-                ReturnRequestStatus.REFUND_REQUESTED
+        boolean existsActiveRequest = returnRequestRepository.existsByOrderItem_IdAndStatusIn(
+                item.getId(),
+                EnumSet.of(
+                        ReturnRequestStatus.SUBMITTED,
+                        ReturnRequestStatus.WAITING_RETURN,
+                        ReturnRequestStatus.RECEIVED,
+                        ReturnRequestStatus.REFUND_REQUESTED
+                )
         );
 
-        if (returnRequestRepository.existsByOrderItem_IdAndStatusIn(item.getId(), active)) {
-            throw new BadRequestException("This item already has an active return request");
+        if (existsActiveRequest) {
+            throw new BadRequestException("This order item already has an active return request");
         }
 
         ReturnRequest rr = new ReturnRequest();
@@ -71,17 +87,15 @@ public class ReturnRequestService {
         rr.setUpdatedAt(LocalDateTime.now());
 
         returnRequestRepository.save(rr);
-
         return toResponse(rr);
     }
 
-    // 2) Support approve: SUBMITTED -> WAITING_RETURN
     public void approve(Long supportUserId, Long returnRequestId) {
         ReturnRequest rr = returnRequestRepository.findById(returnRequestId)
                 .orElseThrow(() -> new BadRequestException("Return request not found"));
 
         if (rr.getStatus() != ReturnRequestStatus.SUBMITTED) {
-            throw new BadRequestException("Only SUBMITTED request can be approved");
+            throw new BadRequestException("Only SUBMITTED return request can be approved");
         }
 
         rr.setStatus(ReturnRequestStatus.WAITING_RETURN);
@@ -90,13 +104,12 @@ public class ReturnRequestService {
         rr.setUpdatedAt(LocalDateTime.now());
     }
 
-    // 3) Support reject
     public void reject(Long supportUserId, Long returnRequestId, String note) {
         ReturnRequest rr = returnRequestRepository.findById(returnRequestId)
                 .orElseThrow(() -> new BadRequestException("Return request not found"));
 
         if (rr.getStatus() != ReturnRequestStatus.SUBMITTED) {
-            throw new BadRequestException("Only SUBMITTED request can be rejected");
+            throw new BadRequestException("Only SUBMITTED return request can be rejected");
         }
 
         rr.setStatus(ReturnRequestStatus.REJECTED);
@@ -106,9 +119,7 @@ public class ReturnRequestService {
         rr.setUpdatedAt(LocalDateTime.now());
     }
 
-    // 4) Operation receive: WAITING_RETURN -> RECEIVED -> create ReturnRecord + restock + create RefundRequest
     public void receive(Long operationUserId, Long returnRequestId, ReceiveReturnRequestDTO dto) {
-
         if (dto.getAcceptedQuantity() == null || dto.getAcceptedQuantity() <= 0) {
             throw new BadRequestException("acceptedQuantity must be > 0");
         }
@@ -129,13 +140,11 @@ public class ReturnRequestService {
 
         Order order = item.getOrder();
 
-        // mark received
         rr.setStatus(ReturnRequestStatus.RECEIVED);
         rr.setReceivedByUserId(operationUserId);
         rr.setReceivedAt(LocalDateTime.now());
         rr.setUpdatedAt(LocalDateTime.now());
 
-        // create return record
         ReturnRecord record = new ReturnRecord();
         record.setReturnRequest(rr);
         record.setAcceptedQuantity(dto.getAcceptedQuantity());
@@ -145,14 +154,18 @@ public class ReturnRequestService {
         record.setCreatedAt(LocalDateTime.now());
         returnRecordRepository.save(record);
 
-        // restock
         restock(item, dto.getAcceptedQuantity());
         record.setRestocked(true);
 
-        // trigger refund request
         long itemRefund = item.getPrice() * dto.getAcceptedQuantity();
         long amountPaid = calcAmountPaid(order.getId());
-        long refundAmount = Math.min(itemRefund, amountPaid);
+        long alreadyReservedRefund = calcAlreadyReservedRefund(order.getId());
+        long refundableBalance = Math.max(amountPaid - alreadyReservedRefund, 0L);
+        long refundAmount = Math.min(itemRefund, refundableBalance);
+
+        if (refundAmount <= 0) {
+            throw new BadRequestException("No refundable balance left for this order");
+        }
 
         RefundRequest refund = new RefundRequest();
         refund.setOrder(order);
@@ -165,8 +178,6 @@ public class ReturnRequestService {
         refund.setCreatedByRole("OPERATION_STAFF");
         refund.setCreatedAt(LocalDateTime.now());
         refund.setUpdatedAt(LocalDateTime.now());
-
-
         refund.setReturnRequest(rr);
 
         refundRequestRepository.save(refund);
@@ -175,8 +186,19 @@ public class ReturnRequestService {
         rr.setUpdatedAt(LocalDateTime.now());
     }
 
+    private long calcAlreadyReservedRefund(Long orderId) {
+        Long sum = refundRequestRepository.sumRefundAmountByOrderAndStatuses(
+                orderId,
+                EnumSet.of(
+                        RefundRequestStatus.REQUESTED,
+                        RefundRequestStatus.APPROVED,
+                        RefundRequestStatus.DONE
+                )
+        );
+        return sum == null ? 0L : sum;
+    }
+
     private void restock(OrderItems item, int acceptedQty) {
-        // combo
         if (Boolean.TRUE.equals(item.getIsCombo()) && item.getProductCombo() != null) {
             for (ComboItem ci : item.getProductCombo().getItems()) {
                 ProductVariant pv = productVariantRepository.lockById(ci.getProductVariant().getId())
@@ -188,7 +210,6 @@ public class ReturnRequestService {
             return;
         }
 
-        // normal variant
         if (item.getProductVariant() == null) {
             throw new BadRequestException("Order item has no variant to restock");
         }
@@ -201,12 +222,14 @@ public class ReturnRequestService {
 
     private long calcAmountPaid(Long orderId) {
         List<Payment> payments = paymentRepository.findByOrder_Id(orderId);
-        long sum = 0;
+        long sum = 0L;
+
         for (Payment p : payments) {
             if (p.getStatus() == PaymentStatus.SUCCESS || p.getStatus() == PaymentStatus.PAID) {
                 sum += p.getAmount();
             }
         }
+
         return sum;
     }
 
@@ -224,7 +247,10 @@ public class ReturnRequestService {
     }
 
     private ReturnRequestResponseDTO toResponse(ReturnRequest rr) {
-        Integer accepted = (rr.getReturnRecord() == null) ? null : rr.getReturnRecord().getAcceptedQuantity();
+        Integer accepted = (rr.getReturnRecord() == null)
+                ? null
+                : rr.getReturnRecord().getAcceptedQuantity();
+
         return new ReturnRequestResponseDTO(
                 rr.getId(),
                 rr.getOrderItem().getOrder().getId(),

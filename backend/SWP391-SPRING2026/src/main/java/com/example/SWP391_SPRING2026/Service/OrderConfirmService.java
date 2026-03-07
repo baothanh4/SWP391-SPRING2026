@@ -11,7 +11,6 @@ import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
-
 import java.time.LocalDateTime;
 
 @Service
@@ -23,10 +22,8 @@ public class OrderConfirmService {
     private final ShipmentRepository shipmentRepository;
     private final GhnService ghnService;
     private final PaymentRepository paymentRepository;
+    private final PreOrderService preOrderService;
 
-    // =========================================================
-    // OPERATION CONFIRM ORDER → CREATE GHN
-    // =========================================================
     public void confirmByOperation(Long orderId) {
 
         Order order = orderRepository.findById(orderId)
@@ -41,24 +38,25 @@ public class OrderConfirmService {
             throw new RuntimeException("Shipment not initialized");
         }
 
-        // 🔥 Check all ONLINE payments phải SUCCESS
+        if (order.getOrderType() == OrderType.PRE_ORDER) {
+            preOrderService.validateReadyToShip(order);
+            preOrderService.markReadyToShip(order);
+        }
+
         var payments = paymentRepository.findByOrder_Id(order.getId());
 
         for (Payment p : payments) {
             if (p.getMethod() != PaymentMethod.COD
                     && p.getStatus() != PaymentStatus.SUCCESS) {
-
                 throw new RuntimeException("Online payment not completed");
             }
         }
 
-        // ===== CALL GHN =====
         String ghnCode = ghnService.createOrder(order);
 
         shipment.setGhnOrderCode(ghnCode);
         shipment.setStatus(ShipmentStatus.READY_TO_PICK);
 
-        // 🔥 Tính COD cần thu (nếu có)
         long codAmount = payments.stream()
                 .filter(p -> p.getMethod() == PaymentMethod.COD
                         && p.getStatus() == PaymentStatus.UNPAID)
@@ -66,16 +64,12 @@ public class OrderConfirmService {
                 .sum();
 
         shipment.setCodAmount(codAmount);
-
         order.setOrderStatus(OrderStatus.SHIPPING);
 
         shipmentRepository.save(shipment);
         orderRepository.save(order);
     }
 
-    // =========================================================
-    // GHN WEBHOOK UPDATE
-    // =========================================================
     public void updateFromWebhook(String ghnCode, String ghnStatus) {
 
         Shipment shipment = shipmentRepository
@@ -83,7 +77,6 @@ public class OrderConfirmService {
                 .orElseThrow(() -> new RuntimeException("GHN order not found"));
 
         ShipmentStatus newStatus = mapStatus(ghnStatus);
-
         if (newStatus == null) {
             throw new RuntimeException("Unknown GHN status: " + ghnStatus);
         }
@@ -93,17 +86,14 @@ public class OrderConfirmService {
         Order order = shipment.getOrder();
 
         switch (newStatus) {
-
             case DELIVERED -> {
                 shipment.setDeliveredAt(LocalDateTime.now());
 
-                // 🔥 Mark COD unpaid as PAID
                 var pays = paymentRepository.findByOrder_Id(order.getId());
 
                 for (Payment p : pays) {
                     if (p.getMethod() == PaymentMethod.COD
                             && p.getStatus() == PaymentStatus.UNPAID) {
-
                         p.setStatus(PaymentStatus.PAID);
                         p.setPaidAt(LocalDateTime.now());
                     }
@@ -111,6 +101,10 @@ public class OrderConfirmService {
 
                 shipment.setCodCollected(true);
                 order.setOrderStatus(OrderStatus.COMPLETED);
+
+                if (order.getOrderType() == OrderType.PRE_ORDER) {
+                    preOrderService.markFulfilled(order);
+                }
             }
 
             case CANCELLED -> order.setOrderStatus(OrderStatus.CANCELLED);
@@ -121,13 +115,8 @@ public class OrderConfirmService {
         orderRepository.save(order);
     }
 
-    // =========================================================
-    // MAP GHN STATUS
-    // =========================================================
     private ShipmentStatus mapStatus(String ghnStatus) {
-
         return switch (ghnStatus) {
-
             case "ready_to_pick" -> ShipmentStatus.READY_TO_PICK;
             case "picking", "money_collect_picking" -> ShipmentStatus.PICKING;
             case "delivering", "money_collect_delivering" -> ShipmentStatus.DELIVERING;
@@ -135,8 +124,7 @@ public class OrderConfirmService {
             case "delivery_fail" -> ShipmentStatus.FAILED;
             case "return" -> ShipmentStatus.RETURNED;
             case "cancel" -> ShipmentStatus.CANCELLED;
-
-            default -> null; // safer
+            default -> null;
         };
     }
 }

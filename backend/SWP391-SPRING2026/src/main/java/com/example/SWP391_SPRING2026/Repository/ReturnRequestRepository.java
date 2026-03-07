@@ -18,5 +18,5 @@ public interface ReturnRequestRepository extends JpaRepository<ReturnRequest, Lo
 
     List<ReturnRequest> findByStatusOrderByIdDesc(ReturnRequestStatus status);
 
-    Optional<ReturnRequest> findByIdAndOrderItem_Order_Address_User_Id(Long id, Long userId);
+    java.util.Optional<ReturnRequest> findByIdAndOrderItem_Order_Address_User_Id(Long id, Long userId);
 }
