@@ -26,5 +26,5 @@ public interface OrderItemRepository extends JpaRepository<OrderItems, Long> {
     // dùng cho support/operation lock theo id
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select oi from OrderItems oi where oi.id = :id")
-    Optional<OrderItems> lockById(Long id);
+    java.util.Optional<OrderItems> lockById(Long id);
 }

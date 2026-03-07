@@ -31,6 +31,7 @@ public class ManagerController {
     private final VariantAttributeService variantAttributeService;
     private final VariantAttributeImageService  variantAttributeImageService;
     private final ProductComboService comboService;
+    private final PreOrderService preOrderService;
     // ===================== PRODUCT =====================
 
     @PostMapping("/products")
@@ -172,5 +173,14 @@ public class ManagerController {
                                                                       @RequestParam(defaultValue = "10")int size){
         Pageable pageable = PageRequest.of(page, size);
         return ResponseEntity.ok(comboService.getAllActiveCombos(pageable));
+    }
+    @PostMapping("/preorders/variants/{variantId}/stock-arrived")
+    @ResponseStatus(HttpStatus.OK)
+    public ResponseEntity<String> markPreOrderStockArrived(
+            @PathVariable Long variantId,
+            @RequestBody StockArrivalRequestDTO dto) {
+
+        preOrderService.markStockArrived(variantId, dto.getArrivedQuantity());
+        return ResponseEntity.ok("Pre-order stock arrival processed");
     }
 }

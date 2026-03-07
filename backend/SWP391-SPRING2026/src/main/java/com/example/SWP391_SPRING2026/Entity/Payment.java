@@ -13,7 +13,8 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "payments", indexes = {
         @Index(name = "idx_payments_order", columnList = "order_id"),
-        @Index(name = "idx_payments_order_stage", columnList = "order_id,stage")
+        @Index(name = "idx_payments_order_stage", columnList = "order_id,stage"),
+        @Index(name = "idx_payments_status_expires", columnList = "status,expires_at")
 })
 @Data
 @AllArgsConstructor
@@ -24,14 +25,13 @@ public class Payment {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // 🔥 Đổi thành ManyToOne để 1 Order có nhiều Payment
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "order_id")
     private Order order;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private PaymentStage stage;   // FULL / DEPOSIT / REMAINING
+    private PaymentStage stage;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
@@ -52,4 +52,7 @@ public class Payment {
 
     @Column(name = "paid_at")
     private LocalDateTime paidAt;
+
+    @Column(name = "expires_at")
+    private LocalDateTime expiresAt;
 }

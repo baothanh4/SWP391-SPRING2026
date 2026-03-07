@@ -3,9 +3,7 @@ package com.example.SWP391_SPRING2026.Service;
 import com.example.SWP391_SPRING2026.DTO.Response.PaymentHistoryResponseDTO;
 import com.example.SWP391_SPRING2026.Entity.Order;
 import com.example.SWP391_SPRING2026.Entity.Payment;
-import com.example.SWP391_SPRING2026.Enum.PaymentMethod;
-import com.example.SWP391_SPRING2026.Enum.PaymentStage;
-import com.example.SWP391_SPRING2026.Enum.PaymentStatus;
+import com.example.SWP391_SPRING2026.Enum.*;
 import com.example.SWP391_SPRING2026.Repository.OrderRepository;
 import com.example.SWP391_SPRING2026.Repository.PaymentRepository;
 import com.example.SWP391_SPRING2026.Utility.VNPayUtils;
@@ -25,64 +23,16 @@ public class PaymentService {
     private final OrderRepository orderRepository;
     private final PaymentRepository paymentRepository;
     private final VNPayService vnPayService;
+    private final PreOrderService preOrderService;
 
     private static final String SECRET_KEY =
             "4LTI2QLZGKBVC0HB79O3K437RSDFJDJJ";
 
-    // =====================================================
-    // 1️⃣ CREATE NEW VNPAY PAYMENT (1–N SAFE)
-    // =====================================================
-    @Transactional
-    public String createVNPayPayment(Long orderId,
-                                     HttpServletRequest request) throws Exception {
-
-        Order order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new RuntimeException("Order not found"));
-
-        // ❗ Kiểm tra đã có SUCCESS payment chưa
-        boolean alreadyPaid = paymentRepository
-                .existsByOrder_IdAndStatus(orderId, PaymentStatus.SUCCESS);
-
-        if (alreadyPaid) {
-            throw new RuntimeException("Order already paid");
-        }
-
-        // 🔥 Tạo payment mới (KHÔNG overwrite cái cũ)
-        Payment payment = new Payment();
-        payment.setOrder(order);
-        payment.setStage(PaymentStage.FULL); // nếu PRE_ORDER thì xử lý riêng
-        payment.setMethod(PaymentMethod.VNPAY);
-        payment.setAmount(order.getTotalAmount());
-        payment.setStatus(PaymentStatus.PENDING);
-        payment.setCreatedAt(LocalDateTime.now());
-
-        paymentRepository.save(payment);
-
-        // Lấy IP chuẩn
-        String ipAddress = request.getRemoteAddr();
-        if (ipAddress == null || ipAddress.equals("0:0:0:0:0:0:0:1")) {
-            ipAddress = "127.0.0.1";
-        }
-
-        // 🔥 Quan trọng: truyền paymentId làm TxnRef
-        return vnPayService.createVNPayUrl(
-                payment.getId().toString(),
-                payment.getAmount(),
-                ipAddress
-        );
-    }
-
-    // =====================================================
-    // 2️⃣ HANDLE VNPAY RETURN
-    // =====================================================
     @Transactional
     public String handleVnpayReturn(HttpServletRequest request) {
 
-        Map<String, String> params =
-                VNPayUtils.getVNPayResponseParams(request);
-
-        boolean valid =
-                VNPayUtils.verifySignature(params, SECRET_KEY);
+        Map<String, String> params = VNPayUtils.getVNPayResponseParams(request);
+        boolean valid = VNPayUtils.verifySignature(params, SECRET_KEY);
 
         if (!valid) {
             return "http://localhost:5173/payment-result?status=invalid";
@@ -93,19 +43,44 @@ public class PaymentService {
         Payment payment = paymentRepository.findById(Long.parseLong(paymentIdStr))
                 .orElseThrow(() -> new RuntimeException("Payment not found"));
 
-        // Nếu đã SUCCESS rồi thì không update lại
         if (payment.getStatus() == PaymentStatus.SUCCESS) {
             return "http://localhost:5173/payment-result?status=success";
         }
 
-        if ("00".equals(params.get("vnp_ResponseCode"))) {
+        Order order = payment.getOrder();
 
+        if ("00".equals(params.get("vnp_ResponseCode"))) {
             payment.setStatus(PaymentStatus.SUCCESS);
             payment.setTransactionCode(params.get("vnp_TransactionNo"));
             payment.setPaidAt(LocalDateTime.now());
 
+            if (order.getOrderType() == OrderType.PRE_ORDER) {
+                if (payment.getStage() == PaymentStage.DEPOSIT
+                        || payment.getStage() == PaymentStage.FULL) {
+                    preOrderService.markInitialPaymentSuccess(order.getId());
+                } else if (payment.getStage() == PaymentStage.REMAINING) {
+                    order.setRemainingAmount(0L);
+                    order.setRemainingPaymentMethod(null);
+                    preOrderService.markRemainingPaid(order.getId());
+                }
+            }
+
         } else {
             payment.setStatus(PaymentStatus.FAILED);
+
+            // fail initial payment => fail preorder order + release slot
+            if (order.getOrderType() == OrderType.PRE_ORDER
+                    && (payment.getStage() == PaymentStage.DEPOSIT || payment.getStage() == PaymentStage.FULL)
+                    && !paymentRepository.existsByOrder_IdAndStatus(order.getId(), PaymentStatus.SUCCESS)) {
+
+                order.setOrderStatus(OrderStatus.FAILED);
+
+                if (order.getShipment() != null) {
+                    order.getShipment().setStatus(ShipmentStatus.CANCELLED);
+                }
+
+                preOrderService.releaseReservations(order);
+            }
         }
 
         paymentRepository.save(payment);
