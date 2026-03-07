@@ -9,5 +9,4 @@ public class VariantAttributeRequestDTO {
     private String attributeName;
     private String attributeValue;
 
-    private List<VariantAttributeImageRequestDTO> images;
 }

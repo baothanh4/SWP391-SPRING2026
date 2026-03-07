@@ -1,10 +1,7 @@
 package com.example.SWP391_SPRING2026.Controller;
 
 import com.example.SWP391_SPRING2026.DTO.Request.*;
-import com.example.SWP391_SPRING2026.DTO.Response.ProductComboResponseDTO;
-import com.example.SWP391_SPRING2026.DTO.Response.ProductDetailResponseDTO;
-import com.example.SWP391_SPRING2026.DTO.Response.ProductResponseDTO;
-import com.example.SWP391_SPRING2026.DTO.Response.ProductVariantResponseDTO;
+import com.example.SWP391_SPRING2026.DTO.Response.*;
 import com.example.SWP391_SPRING2026.Entity.ProductCombo;
 import com.example.SWP391_SPRING2026.Service.*;
 import jakarta.validation.Valid;
@@ -94,10 +91,11 @@ public class ManagerController {
 
     @PostMapping("/variants/{variantId}/attributes")
     @ResponseStatus(HttpStatus.CREATED)
-    public void addAttribute(
+    public VariantAttributeResponseSimpleDTO addAttribute(
             @PathVariable Long variantId,
             @RequestBody VariantAttributeRequestDTO dto) {
-        variantAttributeService.addAttribute(variantId, dto);
+
+        return variantAttributeService.addAttribute(variantId, dto);
     }
 
     @GetMapping("/variants")
@@ -122,8 +120,11 @@ public class ManagerController {
 
     @PostMapping("/attributes/{attributeId}/images")
     @ResponseStatus(HttpStatus.CREATED)
-    public void addAttributeImages(@PathVariable(name = "attributeId") Long attributeId, @RequestBody VariantAttributeImageListRequestDTO dto){
-        variantAttributeImageService.addImages(attributeId,dto.getImages());
+    public List<VariantAttributeImageResponseDTO> addAttributeImages(
+            @PathVariable Long attributeId,
+            @RequestBody List<VariantAttributeImageRequestDTO> images){
+
+        return variantAttributeImageService.addImages(attributeId, images);
     }
 
     @PutMapping("/attributes/images/{imageId}")
