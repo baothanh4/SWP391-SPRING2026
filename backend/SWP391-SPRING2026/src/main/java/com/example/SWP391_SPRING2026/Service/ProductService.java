@@ -89,13 +89,13 @@ public class ProductService {
                     vdto.setPrice(v.getPrice());
                     vdto.setStockQuantity(v.getStockQuantity());
 
-                    List<Long> imageIds =
+                    Set<Long> imageIds =
                             v.getAttributes().stream()
                                     .flatMap(a -> a.getImages().stream())
                                     .map(VariantAttributeImage::getId)
-                                    .toList();
+                                    .collect(java.util.stream.Collectors.toSet());
 
-                    vdto.setImageIds((Set<Long>) imageIds);
+                    vdto.setImageIds(imageIds);
 
                     return vdto;
 
