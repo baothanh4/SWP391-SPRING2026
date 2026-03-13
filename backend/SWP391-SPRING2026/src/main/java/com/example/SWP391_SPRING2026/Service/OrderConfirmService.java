@@ -95,6 +95,11 @@ public class OrderConfirmService {
                 .orElseThrow(() -> new RuntimeException("GHN order not found"));
 
         ShipmentStatus newStatus = mapStatus(ghnStatus);
+
+        if (shipment.getStatus() == newStatus) {
+            return;
+        }
+
         if (newStatus == null) {
             throw new RuntimeException("Unknown GHN status: " + ghnStatus);
         }
@@ -112,8 +117,11 @@ public class OrderConfirmService {
                 for (Payment p : pays) {
                     if (p.getMethod() == PaymentMethod.COD
                             && p.getStatus() == PaymentStatus.UNPAID) {
+
                         p.setStatus(PaymentStatus.PAID);
                         p.setPaidAt(LocalDateTime.now());
+
+                        paymentRepository.save(p);
                     }
                 }
 
@@ -129,11 +137,19 @@ public class OrderConfirmService {
                         .getUser()
                         .getEmail();
 
-                emailService.sendOrderDeliveredEmail(
-                        email,
-                        order.getOrderCode()
-                );
+                if (shipment.getStatus() != ShipmentStatus.DELIVERED) {
+
+                    shipment.setStatus(ShipmentStatus.DELIVERED);
+
+                    emailService.sendOrderDeliveredEmail(
+                            email,
+                            order.getOrderCode()
+                    );
+                }
+
             }
+
+
 
             case CANCELLED -> order.setOrderStatus(OrderStatus.CANCELLED);
             case FAILED -> order.setOrderStatus(OrderStatus.FAILED);

@@ -57,11 +57,15 @@ public class GhnSimulationService {
                 }
 
                 case DELIVERING -> {
-                    log.info("Updating {} -> DELIVERED", shipment.getGhnOrderCode());
-                    orderConfirmService.updateFromWebhook(
-                            shipment.getGhnOrderCode(),
-                            "delivered"
-                    );
+                    if (shipment.getStatus() != ShipmentStatus.DELIVERED) {
+
+                        log.info("Updating {} -> DELIVERED", shipment.getGhnOrderCode());
+
+                        orderConfirmService.updateFromWebhook(
+                                shipment.getGhnOrderCode(),
+                                "delivered"
+                        );
+                    }
                 }
 
                 case DELIVERED -> {
