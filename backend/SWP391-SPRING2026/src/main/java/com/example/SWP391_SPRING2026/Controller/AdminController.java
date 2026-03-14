@@ -4,10 +4,12 @@ import com.example.SWP391_SPRING2026.DTO.Request.UserCreateReq;
 import com.example.SWP391_SPRING2026.DTO.Request.UserStatusReq;
 import com.example.SWP391_SPRING2026.DTO.Request.UserUpdateReq;
 import com.example.SWP391_SPRING2026.DTO.Response.AdminUserResponse;
+import com.example.SWP391_SPRING2026.DTO.Response.DashboardResponseDTO;
 import com.example.SWP391_SPRING2026.Entity.UserPrincipal;
 import com.example.SWP391_SPRING2026.Enum.UserRole;
 import com.example.SWP391_SPRING2026.Enum.UserStatus;
 import com.example.SWP391_SPRING2026.Service.AdminService;
+import com.example.SWP391_SPRING2026.Service.DashboardService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -28,7 +30,7 @@ import org.springframework.web.bind.annotation.*;
 public class AdminController {
 
     private final AdminService adminService;
-
+    private final DashboardService dashboardService;
 
     @PostMapping("/users")
     @ResponseStatus(HttpStatus.CREATED)
@@ -94,4 +96,11 @@ public class AdminController {
         adminService.disable(id, currentAdminId);
         return ResponseEntity.ok("User disabled completed");
     }
+
+    @GetMapping("/dashboard")
+    @ResponseStatus(HttpStatus.OK)
+    public DashboardResponseDTO getDashboard(){
+        return dashboardService.getDashboard();
+    }
+
 }

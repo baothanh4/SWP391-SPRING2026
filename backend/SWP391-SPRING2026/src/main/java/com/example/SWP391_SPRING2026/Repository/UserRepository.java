@@ -3,8 +3,10 @@ package com.example.SWP391_SPRING2026.Repository;
 import com.example.SWP391_SPRING2026.Entity.Users;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 
 
@@ -18,4 +20,17 @@ public interface UserRepository
     boolean existsByEmail(String email);
     boolean existsByPhone(String phone);
     Optional<Users> findByPhone(String phone);
+
+    @Query("""
+    SELECT u.gender, COUNT(u)
+    FROM Users u
+    GROUP BY u.gender
+    """)
+    List<Object[]> getGenderStats();
+
+    @Query("""
+    SELECT COUNT(u)
+    FROM Users u
+    """)
+    Long countAllUsers();
 }
