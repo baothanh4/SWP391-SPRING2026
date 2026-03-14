@@ -10,6 +10,7 @@ import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 
@@ -20,4 +21,32 @@ public interface OrderRepository extends JpaRepository<Order,Long> {
     @Query("select o from Order o where o.id = :id")
     Optional<Order> lockById(Long id);
     List<Order> findByUserIdOrderByCreatedAtDesc(Long userId);
+
+    @Query("""
+    SELECT COALESCE(SUM(o.totalAmount),0)
+    FROM Order o
+    WHERE o.orderStatus = 'COMPLETED'
+    """)
+    BigDecimal getTotalRevenue();
+
+    @Query("""
+    SELECT COUNT(o)
+    FROM Order o
+    WHERE o.orderStatus = 'COMPLETED'
+    """)
+    Long getTotalOrders();
+
+    @Query("""
+    SELECT COALESCE(SUM(o.totalAmount) / COUNT(o),0)
+    FROM Order o
+    WHERE o.orderStatus = 'COMPLETED'
+    """)
+    BigDecimal getAverageOrderValue();
+
+    @Query("""
+    SELECT 
+    (COUNT(CASE WHEN o.orderStatus = 'CANCELLED' THEN 1 END) * 100.0) / COUNT(o)
+    FROM Order o
+    """)
+    Double getCancellationRate();
 }
