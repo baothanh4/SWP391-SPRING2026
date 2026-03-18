@@ -134,9 +134,7 @@ public class ProductVariantService {
 
         if (dto.getSaleType() == SaleType.PRE_ORDER) {
 
-            if (!Boolean.TRUE.equals(dto.getAllowPreorder())) {
-                throw new RuntimeException("allowPreorder must be true for PRE_ORDER");
-            }
+            Boolean allowPreorder = Boolean.TRUE.equals(dto.getAllowPreorder());
 
             if (dto.getPreorderLimit() == null || dto.getPreorderLimit() <= 0) {
                 throw new RuntimeException("preorderLimit must be > 0");
@@ -179,7 +177,7 @@ public class ProductVariantService {
                 throw new RuntimeException("preorderFulfillmentDate cannot be more than 3 days after preorderEndDate");
             }
 
-            variant.setAllowPreorder(true);
+            variant.setAllowPreorder(allowPreorder);
             variant.setPreorderLimit(dto.getPreorderLimit());
             variant.setPreorderStartDate(dto.getPreorderStartDate());
             variant.setPreorderEndDate(dto.getPreorderEndDate());
