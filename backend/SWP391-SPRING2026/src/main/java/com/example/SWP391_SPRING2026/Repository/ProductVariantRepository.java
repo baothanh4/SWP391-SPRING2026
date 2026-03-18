@@ -7,6 +7,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
+import com.example.SWP391_SPRING2026.Enum.SaleType;
+import java.time.LocalDate;
 
 import java.util.List;
 import java.util.Optional;
@@ -36,4 +38,9 @@ public interface ProductVariantRepository extends JpaRepository<ProductVariant,L
     boolean existsBySku(String sku);
 
     boolean existsBySkuAndIdNot(String sku, Long id);
+
+    List<ProductVariant> findBySaleTypeAndAllowPreorderTrueAndPreorderEndDateBefore(
+            SaleType saleType,
+            LocalDate date
+    );
 }
