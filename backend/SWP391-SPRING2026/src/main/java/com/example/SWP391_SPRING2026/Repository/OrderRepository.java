@@ -1,6 +1,7 @@
 package com.example.SWP391_SPRING2026.Repository;
 
 import com.example.SWP391_SPRING2026.Entity.Order;
+import com.example.SWP391_SPRING2026.Enum.ApprovalStatus;
 import com.example.SWP391_SPRING2026.Enum.OrderStatus;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Page;
@@ -49,4 +50,10 @@ public interface OrderRepository extends JpaRepository<Order,Long> {
     FROM Order o
     """)
     Double getCancellationRate();
+
+    Page<Order> findByApprovalStatusAndOrderStatusNotIn(
+            ApprovalStatus approvalStatus,
+            List<OrderStatus> excludedStatuses,
+            Pageable pageable
+    );
 }

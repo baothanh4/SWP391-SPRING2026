@@ -6,7 +6,7 @@ import com.example.SWP391_SPRING2026.Exception.BadRequestException;
 import com.example.SWP391_SPRING2026.Repository.PreOrderRepository;
 import com.example.SWP391_SPRING2026.Repository.ProductVariantRepository;
 
-import com.example.SWP391_SPRING2026.Utility.PreOrderCancellationPolicy;
+
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.stereotype.Service;
@@ -18,6 +18,9 @@ import java.util.EnumSet;
 import java.util.List;
 import com.example.SWP391_SPRING2026.Utility.VariantAvailabilityResolver;
 
+import java.util.LinkedHashMap;
+import java.util.Map;
+
 @Service
 @RequiredArgsConstructor
 @Transactional
@@ -25,6 +28,7 @@ public class PreOrderService {
 
     private final PreOrderRepository preOrderRepository;
     private final ProductVariantRepository variantRepository;
+
 
     /*
         CHECK AVAILABILITY
@@ -115,6 +119,8 @@ public class PreOrderService {
                 EnumSet.of(PreOrderStatus.AWAITING_STOCK)
         );
 
+        Map<Long, Order> affectedOrders = new LinkedHashMap<>();
+
         for (PreOrder line : queue) {
 
             if (stock < line.getQuantity()) {
@@ -125,58 +131,63 @@ public class PreOrderService {
             variant.setStockQuantity(stock);
 
             int current = variant.getCurrentPreorders() == null ? 0 : variant.getCurrentPreorders();
-            variant.setCurrentPreorders(current - line.getQuantity());
+            variant.setCurrentPreorders(Math.max(0, current - line.getQuantity()));
 
             line.setAllocatedStock(true);
 
             Order order = line.getOrder();
+            affectedOrders.put(order.getId(), order);
 
             long remaining = order.getRemainingAmount() == null ? 0 : order.getRemainingAmount();
 
             if (remaining > 0) {
-
                 line.setPreorderStatus(PreOrderStatus.AWAITING_REMAINING_PAYMENT);
-                order.setOrderStatus(OrderStatus.PENDING_PAYMENT);
-
             } else {
-
                 line.setPreorderStatus(PreOrderStatus.READY_FOR_PROCESSING);
-                order.setOrderStatus(OrderStatus.CONFIRMED);
             }
 
             preOrderRepository.save(line);
         }
 
         variantRepository.save(variant);
+
+        for (Order affectedOrder : affectedOrders.values()) {
+            refreshPreOrderOrderStatus(affectedOrder);
+        }
     }
 
     /*
         CUSTOMER PAY REMAINING
      */
     public void markRemainingPaid(Long orderId) {
-
         List<PreOrder> lines = preOrderRepository.findByOrder_Id(orderId);
 
+        if (lines == null || lines.isEmpty()) {
+            throw new RuntimeException("No preorder lines found for order " + orderId);
+        }
+
+        Order order = lines.get(0).getOrder();
+
         for (PreOrder line : lines) {
-
             if (line.getPreorderStatus() == PreOrderStatus.AWAITING_REMAINING_PAYMENT) {
-
                 line.setPreorderStatus(PreOrderStatus.READY_FOR_PROCESSING);
-
-                line.getOrder().setOrderStatus(OrderStatus.CONFIRMED);
             }
         }
+
+        refreshPreOrderOrderStatus(order);
     }
 
     /*
         VALIDATE READY TO SHIP
      */
     public void validateReadyToShip(Order order) {
-
         List<PreOrder> lines = preOrderRepository.findByOrder_Id(order.getId());
 
-        for (PreOrder line : lines) {
+        if (lines == null || lines.isEmpty()) {
+            throw new BadRequestException("No preorder lines found for order " + order.getId());
+        }
 
+        for (PreOrder line : lines) {
             if (line.getPreorderStatus() != PreOrderStatus.READY_FOR_PROCESSING) {
                 throw new BadRequestException("Preorder not ready for shipping");
             }
@@ -186,16 +197,17 @@ public class PreOrderService {
     /*
         OPERATION READY
      */
+    @Transactional
     public void markReadyToShip(Order order) {
-
         List<PreOrder> lines = preOrderRepository.findByOrder_Id(order.getId());
 
-        for (PreOrder line : lines) {
-
-            line.setPreorderStatus(PreOrderStatus.READY_TO_SHIP);
+        if (lines == null || lines.isEmpty()) {
+            throw new RuntimeException("No preorder lines found for order " + order.getId());
         }
 
-        order.setOrderStatus(OrderStatus.OPERATION_CONFIRMED);
+        for (PreOrder line : lines) {
+            line.setPreorderStatus(PreOrderStatus.READY_TO_SHIP);
+        }
     }
 
     /*
@@ -303,5 +315,53 @@ public class PreOrderService {
             }
         }
     }
+
+    public void refreshPreOrderOrderStatus(Order order) {
+        List<PreOrder> lines = preOrderRepository.findByOrder_Id(order.getId());
+
+        if (lines == null || lines.isEmpty()) {
+            return;
+        }
+
+        boolean anyAwaitingRemaining = lines.stream()
+                .anyMatch(line -> line.getPreorderStatus() == PreOrderStatus.AWAITING_REMAINING_PAYMENT);
+
+        boolean anyAwaitingStock = lines.stream()
+                .anyMatch(line ->
+                        line.getPreorderStatus() == PreOrderStatus.RESERVED
+                                || line.getPreorderStatus() == PreOrderStatus.AWAITING_STOCK);
+
+        boolean allReadyForProcessing = lines.stream()
+                .allMatch(line ->
+                        line.getPreorderStatus() == PreOrderStatus.READY_FOR_PROCESSING
+                                || line.getPreorderStatus() == PreOrderStatus.READY_TO_SHIP
+                                || line.getPreorderStatus() == PreOrderStatus.FULFILLED);
+
+        if (anyAwaitingRemaining) {
+            order.setOrderStatus(OrderStatus.PENDING_PAYMENT);
+            return;
+        }
+
+        if (allReadyForProcessing) {
+            order.setOrderStatus(OrderStatus.CONFIRMED);
+            return;
+        }
+
+        if (anyAwaitingStock) {
+            order.setOrderStatus(OrderStatus.PAID);
+        }
+    }
+    public boolean isReadyForOperation(Order order) {
+        List<PreOrder> lines = preOrderRepository.findByOrder_Id(order.getId());
+
+        if (lines == null || lines.isEmpty()) {
+            return false;
+        }
+
+        return lines.stream()
+                .allMatch(line -> line.getPreorderStatus() == PreOrderStatus.READY_FOR_PROCESSING);
+    }
+
+
 
 }

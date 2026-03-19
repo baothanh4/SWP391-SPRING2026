@@ -6,10 +6,7 @@ import com.example.SWP391_SPRING2026.DTO.Response.OrderResponseDTO;
 import com.example.SWP391_SPRING2026.Entity.Order;
 import com.example.SWP391_SPRING2026.Entity.Payment;
 import com.example.SWP391_SPRING2026.Entity.UserPrincipal;
-import com.example.SWP391_SPRING2026.Enum.OrderStatus;
-import com.example.SWP391_SPRING2026.Enum.PaymentMethod;
-import com.example.SWP391_SPRING2026.Enum.PaymentStatus;
-import com.example.SWP391_SPRING2026.Enum.RefundReason;
+import com.example.SWP391_SPRING2026.Enum.*;
 import com.example.SWP391_SPRING2026.Repository.OrderRepository;
 import com.example.SWP391_SPRING2026.Repository.PaymentRepository;
 import com.example.SWP391_SPRING2026.Service.OrderCancellationService;
@@ -22,6 +19,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @RestController
@@ -70,7 +68,8 @@ public class SupportStaffController {
             throw new RuntimeException("Payment not completed");
         }
 
-        order.setOrderStatus(OrderStatus.SUPPORT_CONFIRMED);
+        order.setApprovalStatus(ApprovalStatus.SUPPORT_APPROVED);
+        order.setSupportApprovedAt(LocalDateTime.now());
 
         return ResponseEntity.ok("Order confirmed by support");
     }

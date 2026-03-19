@@ -114,8 +114,8 @@ public class OrderCancellationService {
         Order order = orderRepository.lockById(orderId)
                 .orElseThrow(() -> new ResourceNotFoundException("Order not found"));
 
-        if (!order.getOrderStatus().equals(OrderStatus.SUPPORT_CONFIRMED)) {
-            throw new RuntimeException("Invalid state for confirm");
+        if (order.getApprovalStatus() != ApprovalStatus.SUPPORT_APPROVED) {
+            throw new RuntimeException("Invalid state for cancel");
         }
 
         if (order.getOrderStatus() == OrderStatus.CANCELLED) {
