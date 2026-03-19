@@ -3,11 +3,15 @@ package com.example.SWP391_SPRING2026.Controller;
 import com.example.SWP391_SPRING2026.DTO.Response.ConfirmResponseOrderDTO;
 import com.example.SWP391_SPRING2026.DTO.Response.OrderResponseDTO;
 import com.example.SWP391_SPRING2026.Entity.Order;
+import com.example.SWP391_SPRING2026.Enum.ApprovalStatus;
 import com.example.SWP391_SPRING2026.Enum.OrderStatus;
+import com.example.SWP391_SPRING2026.Enum.OrderType;
 import com.example.SWP391_SPRING2026.Repository.OrderRepository;
 import com.example.SWP391_SPRING2026.Service.OrderConfirmService;
+import com.example.SWP391_SPRING2026.Service.PreOrderService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -23,16 +27,33 @@ public class OperationalOrderController {
 
     private final OrderRepository orderRepository;
     private final OrderConfirmService orderConfirmService;
+    private final PreOrderService preOrderService;
 
     @GetMapping("/approved")
     @ResponseStatus(HttpStatus.OK)
     public Page<Order> getSupportApproved(Pageable pageable) {
-        return orderRepository.findByOrderStatus(
-                OrderStatus.SUPPORT_CONFIRMED,
+        Page<Order> page = orderRepository.findByApprovalStatusAndOrderStatusNotIn(
+                ApprovalStatus.SUPPORT_APPROVED,
+                List.of(
+                        OrderStatus.SHIPPING,
+                        OrderStatus.COMPLETED,
+                        OrderStatus.CANCELLED,
+                        OrderStatus.FAILED
+                ),
                 pageable
         );
-    }
 
+        List<Order> filtered = page.getContent().stream()
+                .filter(order -> {
+                    if (order.getOrderType() != OrderType.PRE_ORDER) {
+                        return true;
+                    }
+                    return preOrderService.isReadyForOperation(order);
+                })
+                .toList();
+
+        return new PageImpl<>(filtered, pageable, filtered.size());
+    }
     @GetMapping
     @ResponseStatus(HttpStatus.OK)
     public List<OrderResponseDTO> getAllOrders() {

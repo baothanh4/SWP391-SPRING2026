@@ -38,7 +38,7 @@ public class OrderConfirmService {
         Order order = orderRepository.lockById(orderId)
                 .orElseThrow(() -> new RuntimeException("Order not found"));
 
-        if (order.getOrderStatus() != OrderStatus.SUPPORT_CONFIRMED) {
+        if (order.getApprovalStatus() != ApprovalStatus.SUPPORT_APPROVED) {
             throw new RuntimeException("Order not approved by support");
         }
 
@@ -47,41 +47,28 @@ public class OrderConfirmService {
             throw new RuntimeException("Shipment not initialized");
         }
 
-        /*
-            PREORDER VALIDATION
-         */
+    /*
+        PREORDER VALIDATION
+     */
         if (order.getOrderType() == OrderType.PRE_ORDER) {
-
             preOrderService.validateReadyToShip(order);
-
-            preOrderService.markReadyToShip(order);
         }
 
-        /*
-            PAYMENT VALIDATION
-         */
+    /*
+        PAYMENT VALIDATION
+     */
         List<Payment> payments = paymentRepository.findByOrder_Id(order.getId());
 
         for (Payment p : payments) {
-
             if (p.getMethod() != PaymentMethod.COD &&
                     p.getStatus() != PaymentStatus.SUCCESS) {
-
                 throw new RuntimeException("Online payment not completed");
             }
         }
 
-        /*
-            CREATE GHN ORDER
-         */
-        String ghnCode = ghnService.createOrder(order);
-
-        shipment.setGhnOrderCode(ghnCode);
-        shipment.setStatus(ShipmentStatus.READY_TO_PICK);
-
-        /*
-            CALCULATE COD
-         */
+    /*
+        CALCULATE COD
+     */
         long codAmount = payments.stream()
                 .filter(p ->
                         p.getMethod() == PaymentMethod.COD &&
@@ -89,19 +76,35 @@ public class OrderConfirmService {
                 .mapToLong(Payment::getAmount)
                 .sum();
 
+    /*
+        CREATE GHN ORDER
+     */
+        String ghnCode = ghnService.createOrder(order);
+
+        shipment.setGhnOrderCode(ghnCode);
+        shipment.setStatus(ShipmentStatus.READY_TO_PICK);
         shipment.setCodAmount(codAmount);
 
+        if (order.getOrderType() == OrderType.PRE_ORDER) {
+            preOrderService.markReadyToShip(order);
+        }
+
+        order.setApprovalStatus(ApprovalStatus.OPERATION_CONFIRMED);
+        order.setOperationConfirmedAt(LocalDateTime.now());
         order.setOrderStatus(OrderStatus.SHIPPING);
 
         shipmentRepository.save(shipment);
         orderRepository.save(order);
 
-        return new ConfirmResponseOrderDTO(
-                order.getOrderCode(),
-                ghnCode,
-                shipment.getStatus(),
-                order.getOrderStatus()
-        );
+        return ConfirmResponseOrderDTO.builder()
+                .orderCode(order.getOrderCode())
+                .ghnOrderCode(ghnCode)
+                .shipmentStatus(shipment.getStatus())
+                .orderStatus(order.getOrderStatus())
+                .approvalStatus(order.getApprovalStatus())
+                .supportApprovedAt(order.getSupportApprovedAt())
+                .operationConfirmedAt(order.getOperationConfirmedAt())
+                .build();
     }
 
     /*

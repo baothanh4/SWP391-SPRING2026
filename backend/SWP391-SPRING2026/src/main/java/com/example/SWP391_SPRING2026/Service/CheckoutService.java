@@ -105,6 +105,7 @@ public class CheckoutService {
         order.setAddress(address);
         order.setUser(user);
         order.setCreatedAt(LocalDateTime.now());
+        order.setApprovalStatus(ApprovalStatus.PENDING_SUPPORT);
 
         orderRepository.save(order);
 

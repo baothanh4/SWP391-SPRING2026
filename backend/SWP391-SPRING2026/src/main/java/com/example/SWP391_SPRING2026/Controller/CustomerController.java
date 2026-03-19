@@ -4,21 +4,18 @@ import com.example.SWP391_SPRING2026.DTO.Request.AddressRequestDTO;
 import com.example.SWP391_SPRING2026.DTO.Request.AddressUpdateDTO;
 import com.example.SWP391_SPRING2026.DTO.Request.ChangePasswordDTO;
 import com.example.SWP391_SPRING2026.DTO.Request.CustomerAccountResponseDTO;
-import com.example.SWP391_SPRING2026.DTO.Response.AddressResponseDTO;
-import com.example.SWP391_SPRING2026.DTO.Response.CustomerAccountUpdateDTO;
-import com.example.SWP391_SPRING2026.DTO.Response.OrderResponseDTO;
-import com.example.SWP391_SPRING2026.DTO.Response.PaymentHistoryResponseDTO;
+import com.example.SWP391_SPRING2026.DTO.Response.*;
 import com.example.SWP391_SPRING2026.Entity.UserPrincipal;
 import com.example.SWP391_SPRING2026.Service.AddressService;
 import com.example.SWP391_SPRING2026.Service.CustomerService;
 import com.example.SWP391_SPRING2026.Service.PaymentService;
+import com.example.SWP391_SPRING2026.Service.RefundRequestService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.core.userdetails.User;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -32,6 +29,7 @@ public class CustomerController {
     private final AddressService addressService;
     private final CustomerService customerService;
     private final PaymentService paymentService;
+    private final RefundRequestService refundRequestService;
 
     @PostMapping("/addresses")
     @ResponseStatus(HttpStatus.CREATED)
@@ -57,9 +55,7 @@ public class CustomerController {
             @PathVariable Long addressId,
             @Valid @RequestBody AddressUpdateDTO dto
     ) {
-        return addressService.updateInfo(
-                principal.getUserId(), addressId, dto
-        );
+        return addressService.updateInfo(principal.getUserId(), addressId, dto);
     }
 
     @PatchMapping("/addresses/{addressId}/default")
@@ -88,38 +84,51 @@ public class CustomerController {
 
     @PutMapping("/profile")
     @ResponseStatus(HttpStatus.OK)
-    public CustomerAccountResponseDTO updateProfile(@AuthenticationPrincipal UserPrincipal principal, @Valid @RequestBody CustomerAccountUpdateDTO dto){
+    public CustomerAccountResponseDTO updateProfile(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @Valid @RequestBody CustomerAccountUpdateDTO dto
+    ) {
         return customerService.updateProfile(principal.getUserId(), dto);
     }
 
     @PutMapping("/profile/change-password")
     @ResponseStatus(HttpStatus.OK)
-    public void changePassword(@AuthenticationPrincipal UserPrincipal principal, @Valid @RequestBody ChangePasswordDTO dto){
+    public void changePassword(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @Valid @RequestBody ChangePasswordDTO dto
+    ) {
         customerService.changePassword(principal.getUserId(), dto);
     }
 
     @DeleteMapping("/profile")
     @ResponseStatus(HttpStatus.OK)
-    public void disableAccount(@AuthenticationPrincipal UserPrincipal principal){
+    public void disableAccount(@AuthenticationPrincipal UserPrincipal principal) {
         customerService.disableAccount(principal.getUserId());
     }
 
     @PutMapping("/orders/{orderId}/cancel")
     @ResponseStatus(HttpStatus.OK)
-    public ResponseEntity<String> cancelOrder(@AuthenticationPrincipal UserPrincipal principal, @PathVariable Long orderId){
+    public ResponseEntity<String> cancelOrder(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable Long orderId
+    ) {
         customerService.cancelOrderByCustomer(principal.getUserId(), orderId);
         return ResponseEntity.ok("Order Cancelled");
     }
 
     @GetMapping("/payments")
     @ResponseStatus(HttpStatus.OK)
-    public ResponseEntity<List<PaymentHistoryResponseDTO>> getAllPayments(@AuthenticationPrincipal UserPrincipal principal){
+    public ResponseEntity<List<PaymentHistoryResponseDTO>> getAllPayments(
+            @AuthenticationPrincipal UserPrincipal principal
+    ) {
         return ResponseEntity.ok(paymentService.getPaymentHistory(principal.getUserId()));
     }
 
     @GetMapping("/my/orders")
     @ResponseStatus(HttpStatus.OK)
-    public ResponseEntity<List<OrderResponseDTO>> getAllOrders(@AuthenticationPrincipal UserPrincipal principal){
+    public ResponseEntity<List<OrderResponseDTO>> getAllOrders(
+            @AuthenticationPrincipal UserPrincipal principal
+    ) {
         return ResponseEntity.ok(customerService.getMyOrders(principal.getUserId()));
     }
 
@@ -128,9 +137,20 @@ public class CustomerController {
     public ResponseEntity<OrderResponseDTO> getOrderById(
             @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable Long orderId
-    ){
+    ) {
         return ResponseEntity.ok(
                 customerService.getMyOrderById(principal.getUserId(), orderId)
+        );
+    }
+
+    @GetMapping("/orders/{orderId}/refund-requests")
+    @ResponseStatus(HttpStatus.OK)
+    public ResponseEntity<List<RefundRequestResponseDTO>> getRefundRequestsByOrder(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable Long orderId
+    ) {
+        return ResponseEntity.ok(
+                refundRequestService.getByOrderForCustomer(principal.getUserId(), orderId)
         );
     }
 }

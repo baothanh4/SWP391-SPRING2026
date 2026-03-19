@@ -1,5 +1,6 @@
 package com.example.SWP391_SPRING2026.Entity;
 
+import com.example.SWP391_SPRING2026.Enum.ApprovalStatus;
 import com.example.SWP391_SPRING2026.Enum.OrderStatus;
 import com.example.SWP391_SPRING2026.Enum.OrderType;
 import com.example.SWP391_SPRING2026.Enum.PaymentMethod;
@@ -87,4 +88,14 @@ public class Order {
     )
     @JsonIgnore
     private List<OrderItems> orderItems = new ArrayList<>();
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "approval_status", nullable = false)
+    private ApprovalStatus approvalStatus;
+
+    @Column(name = "support_approved_at")
+    private LocalDateTime supportApprovedAt;
+
+    @Column(name = "operation_confirmed_at")
+    private LocalDateTime operationConfirmedAt;
 }

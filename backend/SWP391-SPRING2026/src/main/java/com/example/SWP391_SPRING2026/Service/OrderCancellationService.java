@@ -37,10 +37,7 @@ public class OrderCancellationService {
                 .orElseThrow(() -> new ResourceNotFoundException("Order not found"));
 
         // Check ownership
-        if (order.getAddress() == null
-                || order.getAddress().getUser() == null
-                || !order.getAddress().getUser().getId().equals(userId)) {
-
+        if (order.getUser() == null || !order.getUser().getId().equals(userId)) {
             throw new BadRequestException("You are not allowed to cancel this order");
         }
 
@@ -90,8 +87,8 @@ public class OrderCancellationService {
                         userId,
                         "CUSTOMER",
                         fullRefundEligible
-                                ? "Auto full refund: cancelled before preorder deadline"
-                                : "Auto deposit forfeit: cancelled after preorder deadline"
+                                ? "Refund request created automatically: cancelled before preorder deadline"
+                                : "Refund request created automatically with deposit forfeiture policy"
                 );
             }
         }
@@ -114,8 +111,8 @@ public class OrderCancellationService {
         Order order = orderRepository.lockById(orderId)
                 .orElseThrow(() -> new ResourceNotFoundException("Order not found"));
 
-        if (!order.getOrderStatus().equals(OrderStatus.SUPPORT_CONFIRMED)) {
-            throw new RuntimeException("Invalid state for confirm");
+        if (order.getApprovalStatus() != ApprovalStatus.SUPPORT_APPROVED) {
+            throw new RuntimeException("Invalid state for cancel");
         }
 
         if (order.getOrderStatus() == OrderStatus.CANCELLED) {
@@ -144,13 +141,16 @@ public class OrderCancellationService {
 
         if (paidAmount > 0) {
 
-            if (refundRequestRepository.existsByOrderIdAndStatus(
+            if (refundRequestRepository.existsByOrder_IdAndStatus(
                     order.getId(),
                     RefundRequestStatus.REQUESTED)) {
-
                 throw new BadRequestException("Refund already requested");
             }
-
+            if (refundRequestRepository.existsByOrder_IdAndStatus(
+                    order.getId(),
+                    RefundRequestStatus.REQUESTED)) {
+                throw new BadRequestException("Refund already requested");
+            }
             createRefundRequest(
                     order,
                     reason == null ? RefundReason.SHOP_CANNOT_SUPPLY : reason,

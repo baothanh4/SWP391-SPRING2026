@@ -1,27 +1,25 @@
 package com.example.SWP391_SPRING2026.Controller;
 
-
 import com.example.SWP391_SPRING2026.DTO.Request.CancelOrderByStaffRequestDTO;
+import com.example.SWP391_SPRING2026.DTO.Response.ConfirmResponseOrderDTO;
 import com.example.SWP391_SPRING2026.DTO.Response.OrderResponseDTO;
 import com.example.SWP391_SPRING2026.Entity.Order;
 import com.example.SWP391_SPRING2026.Entity.Payment;
+import com.example.SWP391_SPRING2026.Entity.Shipment;
 import com.example.SWP391_SPRING2026.Entity.UserPrincipal;
-import com.example.SWP391_SPRING2026.Enum.OrderStatus;
-import com.example.SWP391_SPRING2026.Enum.PaymentMethod;
-import com.example.SWP391_SPRING2026.Enum.PaymentStatus;
-import com.example.SWP391_SPRING2026.Enum.RefundReason;
+import com.example.SWP391_SPRING2026.Enum.*;
 import com.example.SWP391_SPRING2026.Repository.OrderRepository;
 import com.example.SWP391_SPRING2026.Repository.PaymentRepository;
 import com.example.SWP391_SPRING2026.Service.OrderCancellationService;
+import com.example.SWP391_SPRING2026.Service.PreOrderService;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @RestController
@@ -32,6 +30,7 @@ public class SupportStaffController {
     private final OrderRepository orderRepository;
     private final OrderCancellationService orderCancellationService;
     private final PaymentRepository paymentRepository;
+    private final PreOrderService preOrderService;
 
     @GetMapping
     @ResponseStatus(HttpStatus.OK)
@@ -44,21 +43,21 @@ public class SupportStaffController {
         return orderCancellationService.getOrderById(orderId);
     }
 
-    // 2️⃣ Confirm đơn (Support duyệt)
     @PostMapping("/{orderId}/confirm")
     @ResponseStatus(HttpStatus.CREATED)
     @Transactional
-    public ResponseEntity<String> confirmOrder(
-            @PathVariable Long orderId) {
+    public ResponseEntity<ConfirmResponseOrderDTO> confirmOrder(@PathVariable Long orderId) {
 
         Order order = orderRepository.lockById(orderId)
                 .orElseThrow(() -> new RuntimeException("Order not found"));
 
-        if (order.getOrderStatus() != OrderStatus.WAITING_CONFIRM &&  order.getOrderStatus() != OrderStatus.PAID && order.getOrderStatus() != OrderStatus.PENDING_PAYMENT) {
-            throw new RuntimeException("Order status is WAITING_CONFIRM or PAID");
+        if (order.getOrderStatus() != OrderStatus.WAITING_CONFIRM
+                && order.getOrderStatus() != OrderStatus.PAID
+                && order.getOrderStatus() != OrderStatus.PENDING_PAYMENT
+                && order.getOrderStatus() != OrderStatus.CONFIRMED) {
+            throw new RuntimeException("Order status is not valid for support confirm");
         }
 
-        // ✅ validate payment
         List<Payment> payments = paymentRepository.findByOrder_Id(orderId);
 
         boolean valid = payments.stream().allMatch(p ->
@@ -70,9 +69,32 @@ public class SupportStaffController {
             throw new RuntimeException("Payment not completed");
         }
 
-        order.setOrderStatus(OrderStatus.SUPPORT_CONFIRMED);
+        order.setApprovalStatus(ApprovalStatus.SUPPORT_APPROVED);
+        order.setSupportApprovedAt(LocalDateTime.now());
 
-        return ResponseEntity.ok("Order confirmed by support");
+        if (order.getOrderType() == OrderType.IN_STOCK) {
+            order.setOrderStatus(OrderStatus.SUPPORT_CONFIRMED);
+        } else if (order.getOrderType() == OrderType.PRE_ORDER) {
+            if (preOrderService.isReadyForOperation(order)) {
+                order.setOrderStatus(OrderStatus.SUPPORT_CONFIRMED);
+            }
+        }
+
+        orderRepository.save(order);
+
+        Shipment shipment = order.getShipment();
+
+        ConfirmResponseOrderDTO response = ConfirmResponseOrderDTO.builder()
+                .orderCode(order.getOrderCode())
+                .ghnOrderCode(shipment != null ? shipment.getGhnOrderCode() : null)
+                .shipmentStatus(shipment != null ? shipment.getStatus() : null)
+                .orderStatus(order.getOrderStatus())
+                .approvalStatus(order.getApprovalStatus())
+                .supportApprovedAt(order.getSupportApprovedAt())
+                .operationConfirmedAt(order.getOperationConfirmedAt())
+                .build();
+
+        return ResponseEntity.ok(response);
     }
 
     @PostMapping("/{orderId}/cancel")
