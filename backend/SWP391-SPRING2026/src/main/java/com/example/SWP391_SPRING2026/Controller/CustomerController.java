@@ -4,14 +4,12 @@ import com.example.SWP391_SPRING2026.DTO.Request.AddressRequestDTO;
 import com.example.SWP391_SPRING2026.DTO.Request.AddressUpdateDTO;
 import com.example.SWP391_SPRING2026.DTO.Request.ChangePasswordDTO;
 import com.example.SWP391_SPRING2026.DTO.Request.CustomerAccountResponseDTO;
-import com.example.SWP391_SPRING2026.DTO.Response.AddressResponseDTO;
-import com.example.SWP391_SPRING2026.DTO.Response.CustomerAccountUpdateDTO;
-import com.example.SWP391_SPRING2026.DTO.Response.OrderResponseDTO;
-import com.example.SWP391_SPRING2026.DTO.Response.PaymentHistoryResponseDTO;
+import com.example.SWP391_SPRING2026.DTO.Response.*;
 import com.example.SWP391_SPRING2026.Entity.UserPrincipal;
 import com.example.SWP391_SPRING2026.Service.AddressService;
 import com.example.SWP391_SPRING2026.Service.CustomerService;
 import com.example.SWP391_SPRING2026.Service.PaymentService;
+import com.example.SWP391_SPRING2026.Service.RefundRequestService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -32,6 +30,7 @@ public class CustomerController {
     private final AddressService addressService;
     private final CustomerService customerService;
     private final PaymentService paymentService;
+    private final RefundRequestService refundRequestService;
 
     @PostMapping("/addresses")
     @ResponseStatus(HttpStatus.CREATED)
@@ -132,5 +131,20 @@ public class CustomerController {
         return ResponseEntity.ok(
                 customerService.getMyOrderById(principal.getUserId(), orderId)
         );
+    }
+    @GetMapping("/refund-requests")
+    @ResponseStatus(HttpStatus.OK)
+    public ResponseEntity<List<RefundRequestResponseDTO>> getMyRefundRequests(
+            @AuthenticationPrincipal UserPrincipal principal
+    ) {
+        return ResponseEntity.ok(refundRequestService.getByCustomer(principal.getUserId()));
+    }
+
+    @GetMapping("/orders/{orderId}/refund-requests")
+    @ResponseStatus(HttpStatus.OK)
+    public ResponseEntity<List<RefundRequestResponseDTO>> getRefundRequestsByOrder(
+            @PathVariable Long orderId
+    ) {
+        return ResponseEntity.ok(refundRequestService.getByOrder(orderId));
     }
 }

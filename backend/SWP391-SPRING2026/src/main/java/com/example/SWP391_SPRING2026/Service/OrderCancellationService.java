@@ -37,10 +37,7 @@ public class OrderCancellationService {
                 .orElseThrow(() -> new ResourceNotFoundException("Order not found"));
 
         // Check ownership
-        if (order.getAddress() == null
-                || order.getAddress().getUser() == null
-                || !order.getAddress().getUser().getId().equals(userId)) {
-
+        if (order.getUser() == null || !order.getUser().getId().equals(userId)) {
             throw new BadRequestException("You are not allowed to cancel this order");
         }
 
@@ -90,8 +87,8 @@ public class OrderCancellationService {
                         userId,
                         "CUSTOMER",
                         fullRefundEligible
-                                ? "Auto full refund: cancelled before preorder deadline"
-                                : "Auto deposit forfeit: cancelled after preorder deadline"
+                                ? "Refund request created automatically: cancelled before preorder deadline"
+                                : "Refund request created automatically with deposit forfeiture policy"
                 );
             }
         }
@@ -150,7 +147,11 @@ public class OrderCancellationService {
 
                 throw new BadRequestException("Refund already requested");
             }
-
+            if (refundRequestRepository.existsByOrderIdAndStatus(
+                    order.getId(),
+                    RefundRequestStatus.REQUESTED)) {
+                throw new BadRequestException("Refund already requested");
+            }
             createRefundRequest(
                     order,
                     reason == null ? RefundReason.SHOP_CANNOT_SUPPLY : reason,

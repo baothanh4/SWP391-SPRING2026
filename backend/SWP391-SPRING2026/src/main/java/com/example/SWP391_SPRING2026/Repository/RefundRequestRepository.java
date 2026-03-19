@@ -22,4 +22,23 @@ public interface RefundRequestRepository extends JpaRepository<RefundRequest, Lo
           and r.status in :statuses
     """)
     Long sumRefundAmountByOrderAndStatuses(Long orderId, Collection<RefundRequestStatus> statuses);
+
+    List<RefundRequest> findByStatusOrderByIdDesc(RefundRequestStatus status);
+
+    @Query("""
+    select r
+    from RefundRequest r
+    where r.order.user.id = :userId
+    order by r.id desc
+""")
+    List<RefundRequest> findByCustomerUserId(Long userId);
+
+    @Query("""
+    select r
+    from RefundRequest r
+    where r.order.id = :orderId
+    order by r.id desc
+""")
+    List<RefundRequest> findByOrderIdOrderByIdDesc(Long orderId);
 }
+
