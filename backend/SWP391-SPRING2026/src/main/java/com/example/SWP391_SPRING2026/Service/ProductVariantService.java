@@ -4,9 +4,7 @@ import com.example.SWP391_SPRING2026.DTO.Request.ProductVariantRequestDTO;
 import com.example.SWP391_SPRING2026.DTO.Response.ProductVariantResponseDTO;
 import com.example.SWP391_SPRING2026.Entity.Product;
 import com.example.SWP391_SPRING2026.Entity.ProductVariant;
-import com.example.SWP391_SPRING2026.Enum.PreOrderStatus;
 import com.example.SWP391_SPRING2026.Enum.SaleType;
-import com.example.SWP391_SPRING2026.Repository.PreOrderRepository;
 import com.example.SWP391_SPRING2026.Repository.ProductRepository;
 import com.example.SWP391_SPRING2026.Repository.ProductVariantRepository;
 import com.example.SWP391_SPRING2026.Utility.PreOrderRule;
@@ -14,7 +12,6 @@ import com.example.SWP391_SPRING2026.Utility.VariantAvailabilityResolver;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
-import java.util.EnumSet;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -24,17 +21,7 @@ public class ProductVariantService {
 
     private final ProductRepository productRepository;
     private final ProductVariantRepository productVariantRepository;
-    private final PreOrderRepository preOrderRepository;
     private final PreOrderService preOrderService;
-
-    private static final EnumSet<PreOrderStatus> ACTIVE_PREORDER_STATUSES =
-            EnumSet.of(
-                    PreOrderStatus.RESERVED,
-                    PreOrderStatus.AWAITING_STOCK,
-                    PreOrderStatus.AWAITING_REMAINING_PAYMENT,
-                    PreOrderStatus.READY_FOR_PROCESSING,
-                    PreOrderStatus.READY_TO_SHIP
-            );
 
     public ProductVariantResponseDTO create(Long productId, ProductVariantRequestDTO dto) {
 
@@ -69,29 +56,33 @@ public class ProductVariantService {
         ProductVariant variant = productVariantRepository.findById(variantId)
                 .orElseThrow(() -> new RuntimeException("Product Variant Not Found"));
 
+        SaleType oldSaleType = variant.getSaleType();
         int oldStock = variant.getStockQuantity() == null ? 0 : variant.getStockQuantity();
         int newStock = dto.getStockQuantity() == null ? 0 : dto.getStockQuantity();
-
-        if (variant.getSaleType() == SaleType.PRE_ORDER
-                && dto.getSaleType() == SaleType.IN_STOCK
-                && preOrderRepository.existsByProductVariant_IdAndPreorderStatusIn(
-                variantId,
-                ACTIVE_PREORDER_STATUSES
-        )) {
-            throw new RuntimeException("Cannot change PRE_ORDER variant to IN_STOCK while active pre-orders exist");
-        }
 
         variant.setSku(dto.getSku());
         variant.setPrice(dto.getPrice());
         variant.setStockQuantity(newStock);
         variant.setSaleType(dto.getSaleType());
 
-        applyPreOrderConfig(variant, dto);
+        if (dto.getSaleType() == SaleType.PRE_ORDER) {
+            applyPreOrderConfig(variant, dto);
+        } else {
+            // chuyển sang IN_STOCK thì chỉ tắt preorder,
+            // KHÔNG xóa preorderLimit/currentPreorders/date để giữ lịch sử campaign
+            variant.setAllowPreorder(false);
+        }
 
         productVariantRepository.save(variant);
 
-        if (variant.getSaleType() == SaleType.PRE_ORDER && newStock > oldStock) {
+        // Nếu variant trước đó là PRE_ORDER và stock tăng,
+        // thì tự allocate để trừ stock theo preorder queue
+        if (oldSaleType == SaleType.PRE_ORDER && newStock > oldStock) {
             preOrderService.allocateAvailableStock(variantId);
+
+            // load lại variant để trả đúng stock sau khi đã bị trừ preorder
+            variant = productVariantRepository.findById(variantId)
+                    .orElseThrow(() -> new RuntimeException("Product Variant Not Found"));
         }
 
         return toDTO(variant);
@@ -122,14 +113,11 @@ public class ProductVariantService {
                 .preorderStartDate(productVariant.getPreorderStartDate())
                 .preorderEndDate(productVariant.getPreorderEndDate())
                 .preorderFulfillmentDate(productVariant.getPreorderFulfillmentDate())
-                .preorderStartDate(productVariant.getPreorderStartDate())
-                .preorderEndDate(productVariant.getPreorderEndDate())
                 .availabilityStatus(VariantAvailabilityResolver.resolve(productVariant))
                 .product_id(productVariant.getProduct().getId())
                 .build();
     }
 
-    // HELPERS
     private void applyPreOrderConfig(ProductVariant variant, ProductVariantRequestDTO dto) {
 
         if (dto.getSaleType() == SaleType.PRE_ORDER) {
@@ -168,9 +156,6 @@ public class ProductVariantService {
             if (dto.getPreorderLimit() < currentPreorders) {
                 throw new RuntimeException("preorderLimit cannot be less than currentPreorders");
             }
-            if (dto.getPreorderFulfillmentDate().isBefore(dto.getPreorderEndDate())) {
-                throw new RuntimeException("preorderFulfillmentDate must be on or after preorderEndDate");
-            }
 
             if (dto.getPreorderFulfillmentDate()
                     .isAfter(dto.getPreorderEndDate().plusDays(PreOrderRule.FULFILLMENT_MAX_DAYS_AFTER_END))) {
@@ -185,10 +170,7 @@ public class ProductVariantService {
             return;
         }
 
+        // chỉ tắt preorder, không xóa dữ liệu campaign cũ
         variant.setAllowPreorder(false);
-        variant.setPreorderLimit(null);
-        variant.setPreorderStartDate(null);
-        variant.setPreorderEndDate(null);
-        variant.setPreorderFulfillmentDate(null);
     }
 }

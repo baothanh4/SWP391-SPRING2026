@@ -130,9 +130,6 @@ public class PreOrderService {
             stock -= line.getQuantity();
             variant.setStockQuantity(stock);
 
-            int current = variant.getCurrentPreorders() == null ? 0 : variant.getCurrentPreorders();
-            variant.setCurrentPreorders(Math.max(0, current - line.getQuantity()));
-
             line.setAllocatedStock(true);
 
             Order order = line.getOrder();
@@ -295,9 +292,6 @@ public class PreOrderService {
 
             if (line.getPreorderStatus() == PreOrderStatus.RESERVED
                     || line.getPreorderStatus() == PreOrderStatus.AWAITING_STOCK) {
-
-                int current = variant.getCurrentPreorders() == null ? 0 : variant.getCurrentPreorders();
-                variant.setCurrentPreorders(Math.max(0, current - line.getQuantity()));
 
                 line.setSlotReleased(true);
                 line.setPreorderStatus(PreOrderStatus.CANCELLED);
