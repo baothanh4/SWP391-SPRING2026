@@ -14,6 +14,7 @@ import com.example.SWP391_SPRING2026.Exception.BadRequestException;
 import com.example.SWP391_SPRING2026.Exception.DuplicateResourceException;
 import com.example.SWP391_SPRING2026.Repository.OrderRepository;
 import com.example.SWP391_SPRING2026.Repository.UserRepository;
+import com.example.SWP391_SPRING2026.mapper.OrderMapper;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -175,6 +176,8 @@ public class CustomerService {
 
             dto.setAddress(addressDTO);
         }
+
+        dto.setItems(OrderMapper.mapItems(order.getOrderItems()));
 
         return dto;
     }

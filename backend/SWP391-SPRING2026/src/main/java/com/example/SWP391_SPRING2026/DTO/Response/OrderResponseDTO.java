@@ -7,6 +7,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 @NoArgsConstructor
@@ -30,4 +31,5 @@ public class OrderResponseDTO {
     private LocalDateTime supportApprovedAt;
     private LocalDateTime operationConfirmedAt;
     private LocalDateTime deliveredAt;
+    private List<OrderItemResponseDTO> items;
 }
