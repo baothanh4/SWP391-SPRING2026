@@ -10,6 +10,7 @@ import com.example.SWP391_SPRING2026.Enum.OrderStatus;
 import com.example.SWP391_SPRING2026.Enum.PaymentMethod;
 import com.example.SWP391_SPRING2026.Enum.PaymentStatus;
 import com.example.SWP391_SPRING2026.Repository.*;
+import com.example.SWP391_SPRING2026.mapper.OrderMapper;
 import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -190,27 +191,29 @@ public class DashboardService {
     }
 
     private OrderResponseDTO mapToDTO(Order o) {
+
         Shipment shipment = o.getShipment();
 
-        return new OrderResponseDTO(
-                o.getId(),
-                o.getOrderCode(),
-                o.getOrderType(),
-                o.getOrderStatus(),
-                o.getTotalAmount(),
-                o.getDeposit(),
-                o.getRemainingAmount(),
-                mapAddress(o.getAddress()),
-                o.getCreatedAt(),
-                getLatestPaymentMethod(o),
-                getLatestPaymentStatus(o),
-                shipment != null ? shipment.getGhnOrderCode() : null,
-                shipment != null ? shipment.getStatus() : null,
-                o.getApprovalStatus(),
-                o.getSupportApprovedAt(),
-                o.getOperationConfirmedAt(),
-                shipment != null ? shipment.getDeliveredAt() : null
-        );
+        return OrderResponseDTO.builder()
+                .id(o.getId())
+                .orderCode(o.getOrderCode())
+                .orderType(o.getOrderType())
+                .orderStatus(o.getOrderStatus())
+                .totalAmount(o.getTotalAmount())
+                .deposit(o.getDeposit())
+                .remainingAmount(o.getRemainingAmount())
+                .address(mapAddress(o.getAddress()))
+                .createdAt(o.getCreatedAt())
+                .paymentMethod(getLatestPaymentMethod(o))
+                .paymentStatus(getLatestPaymentStatus(o))
+                .ghnOrderCode(shipment != null ? shipment.getGhnOrderCode() : null)
+                .shipmentStatus(shipment != null ? shipment.getStatus() : null)
+                .approvalStatus(o.getApprovalStatus())
+                .supportApprovedAt(o.getSupportApprovedAt())
+                .operationConfirmedAt(o.getOperationConfirmedAt())
+                .deliveredAt(shipment != null ? shipment.getDeliveredAt() : null)
+                .items(OrderMapper.mapItems(o.getOrderItems()))
+                .build();
     }
 
     private AddressResponseDTO mapAddress(Address a) {
