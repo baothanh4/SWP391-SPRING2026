@@ -32,4 +32,7 @@ public class OrderResponseDTO {
     private LocalDateTime operationConfirmedAt;
     private LocalDateTime deliveredAt;
     private List<OrderItemResponseDTO> items;
+
+    public OrderResponseDTO(Long id, String orderCode, OrderType orderType, OrderStatus orderStatus, Long totalAmount, Long deposit, Long remainingAmount, AddressResponseDTO addressResponseDTO, LocalDateTime createdAt, PaymentMethod latestPaymentMethod, PaymentStatus latestPaymentStatus, String s, ShipmentStatus shipmentStatus, ApprovalStatus approvalStatus, LocalDateTime supportApprovedAt, LocalDateTime operationConfirmedAt, LocalDateTime localDateTime) {
+    }
 }
