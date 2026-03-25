@@ -3,6 +3,7 @@ package com.example.SWP391_SPRING2026.Entity;
 
 import com.example.SWP391_SPRING2026.Enum.UserRole;
 import com.example.SWP391_SPRING2026.Enum.UserStatus;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -48,9 +49,11 @@ public class Users {
     private UserStatus status = UserStatus.INACTIVE;
 
     @OneToMany(mappedBy = "user",cascade = CascadeType.ALL,orphanRemoval = true)
+    @JsonIgnore
     private List<Address> addresses;
 
     @OneToMany(mappedBy = "user")
+    @JsonIgnore
     private List<Order> orders;
 
     @PrePersist

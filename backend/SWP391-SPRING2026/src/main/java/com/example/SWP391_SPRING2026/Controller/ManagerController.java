@@ -2,6 +2,7 @@ package com.example.SWP391_SPRING2026.Controller;
 
 import com.example.SWP391_SPRING2026.DTO.Request.*;
 import com.example.SWP391_SPRING2026.DTO.Response.*;
+import com.example.SWP391_SPRING2026.Entity.Order;
 import com.example.SWP391_SPRING2026.Entity.ProductCombo;
 import com.example.SWP391_SPRING2026.Service.*;
 import jakarta.validation.Valid;
@@ -17,6 +18,8 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @RestController
@@ -174,8 +177,30 @@ public class ManagerController {
 
     @GetMapping("/dashboard")
     @ResponseStatus(HttpStatus.OK)
-    public DashboardResponseDTO getDashboard(){
-        return dashboardService.getDashboard();
+    public DashboardResponseDTO getDashboard(
+            @RequestParam(required = false) LocalDate from,
+            @RequestParam(required = false) LocalDate to
+    ) {
+        return dashboardService.getDashboard(from, to);
+    }
+
+    @GetMapping("/dashboard/revenue-detail")
+    public List<RevenueTimeDTO> getRevenueDetail(
+            @RequestParam String type,
+            @RequestParam LocalDate from,
+            @RequestParam LocalDate to
+    ) {
+        return dashboardService.getRevenueDetail(type, from, to);
+    }
+
+    @GetMapping("/dashboard/order-detail")
+    public Page<OrderResponseDTO> getOrderDetail(
+            @RequestParam(defaultValue = "ALL") String status,
+            @RequestParam LocalDate from,
+            @RequestParam LocalDate to,
+            Pageable pageable
+    ) {
+        return dashboardService.getOrderDetail(status, from, to, pageable);
     }
 
     @GetMapping("/combos")

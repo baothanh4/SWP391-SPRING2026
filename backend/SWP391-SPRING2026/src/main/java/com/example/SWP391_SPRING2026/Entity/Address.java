@@ -1,6 +1,7 @@
 package com.example.SWP391_SPRING2026.Entity;
 
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -39,6 +40,7 @@ public class Address {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "customer_id",nullable = false)
+    @JsonIgnore
     private Users user;
 
     @OneToMany(mappedBy = "address")
