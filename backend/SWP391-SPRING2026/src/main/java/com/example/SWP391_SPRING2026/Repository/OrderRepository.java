@@ -12,6 +12,8 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -69,6 +71,70 @@ public interface OrderRepository extends JpaRepository<Order,Long> {
     Page<Order> findOperationApprovedOrders(
             ApprovalStatus approvalStatus,
             List<OrderStatus> excludedStatuses,
+            Pageable pageable
+    );
+
+
+    @Query("""
+SELECT o.orderStatus, COUNT(o)
+FROM Order o
+WHERE o.createdAt BETWEEN :from AND :to
+GROUP BY o.orderStatus
+""")
+    List<Object[]> getOrderStatusStats(LocalDateTime from, LocalDateTime to);
+
+
+    @Query("""
+SELECT COUNT(o)
+FROM Order o
+WHERE o.createdAt BETWEEN :from AND :to
+""")
+    Long countOrders(LocalDateTime from, LocalDateTime to);
+
+
+    @Query("""
+SELECT COUNT(o)
+FROM Order o
+WHERE o.orderStatus = 'COMPLETED'
+AND o.createdAt BETWEEN :from AND :to
+""")
+    Long countCompletedOrders(LocalDateTime from, LocalDateTime to);
+
+    @Query("""
+SELECT 
+(COUNT(o) * 1.0)
+FROM Order o
+WHERE o.orderStatus = 'CANCELLED'
+AND o.createdAt BETWEEN :from AND :to
+""")
+    Double countCancelled(LocalDateTime from, LocalDateTime to);
+
+
+    @Query("""
+SELECT COUNT(o)
+FROM Order o
+WHERE o.createdAt BETWEEN :from AND :to
+""")
+    Long countAll(LocalDateTime from, LocalDateTime to);
+
+    @Query("""
+SELECT o.orderStatus, COUNT(o)
+FROM Order o
+WHERE o.createdAt BETWEEN :from AND :to
+GROUP BY o.orderStatus
+""")
+    List<Object[]> getOrderStats(LocalDateTime from, LocalDateTime to);
+
+    Page<Order> findByCreatedAtBetween(
+            LocalDateTime from,
+            LocalDateTime to,
+            Pageable pageable
+    );
+
+    Page<Order> findByOrderStatusAndCreatedAtBetween(
+            OrderStatus status,
+            LocalDateTime from,
+            LocalDateTime to,
             Pageable pageable
     );
 }

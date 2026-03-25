@@ -14,10 +14,13 @@ public class DashboardResponseDTO {
     private BigDecimal averageOrderValue;
     private Double cancellationRate;
 
-    private List<GenderStatsDTO> genderStats;
+    private List<RevenueTimeDTO> revenueByMonth;
+    private List<RevenueTimeDTO> revenueByQuarter;
+
+    private List<SimpleStatDTO> paymentStats;
+    private List<SimpleStatDTO> orderStats;
 
     private List<BestSellerDTO> bestSellers;
-
     private List<LowStockDTO> lowStockProducts;
 
 }

@@ -29,7 +29,7 @@ public class JWTService {
                 .setSubject(user.getId().toString())
                 .claim("role",user.getRole().name())
                 .setIssuedAt(new Date())
-                .setExpiration(new Date(System.currentTimeMillis()+1000*60*15))
+                .setExpiration(new Date(System.currentTimeMillis()+1000*60*60))
                 .signWith(Keys.hmacShaKeyFor(SECRET_KEY.getBytes(StandardCharsets.UTF_8)))
                 .compact();
     }
